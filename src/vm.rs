@@ -90,7 +90,7 @@ pub trait Vm {
 	fn set_entry_point(&mut self, entry: u64);
 	fn get_entry_point(&self) -> u64;
 	fn kernel_path(&self) -> &str;
-	fn create_cpu(&self, id: u32) -> Result<Box<VirtualCPU>>;
+	fn create_cpu(&self, id: u32) -> Result<Box<dyn VirtualCPU>>;
 	fn file(&self) -> (u64, u64);
 
 	fn init_guest_mem(&self)

@@ -121,7 +121,7 @@ impl Vm for Ehyve {
 		&self.path
 	}
 
-	fn create_cpu(&self, id: u32) -> Result<Box<VirtualCPU>> {
+	fn create_cpu(&self, id: u32) -> Result<Box<dyn VirtualCPU>> {
 		Ok(Box::new(EhyveCPU::new(id, self.vm.create_vcpu().unwrap())))
 	}
 
