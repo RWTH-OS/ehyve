@@ -2,16 +2,16 @@
 name = "ehyve"
 version = "0.0.8"
 authors = ["Stefan Lankes <slankes@eonerc.rwth-aachen>"]
-license = "MIT"
+license = "MIT/Apache-2.0"
 
 [dependencies]
 log = "0.4"
 env_logger = "0.5.10"
 aligned_alloc = "0.1"
 elf = "0.0.10"
-libc = "0.2.42"
-memmap = "0.6"
-lazy_static = "1.1"
+libc = "0.2.66"
+memmap = "0.7"
+lazy_static = "1.4"
 clap = "2"
 #raw-cpuid = "5.0.0"
 
