@@ -9,9 +9,9 @@ use std::io::prelude::*;
 use std::io::{self, Write};
 use vm::VirtualCPU;
 use x86::bits64::segmentation::*;
-use x86::shared::control_regs::*;
-use x86::shared::msr::*;
-use x86::shared::PrivilegeLevel;
+use x86::controlregs::*;
+use x86::msr::*;
+use x86::Ring;
 
 const CPUID_EXT_HYPERVISOR: UINT32 = 1 << 31;
 
@@ -69,12 +69,12 @@ impl VirtualCPU for EhyveCPU {
 		reg_names[0] = WHV_REGISTER_NAME::WHvX64RegisterCr3;
 		reg_values[0].Reg64 = BOOT_PML4;
 		reg_names[1] = WHV_REGISTER_NAME::WHvX64RegisterCr4;
-		reg_values[1].Reg64 = CR4_ENABLE_PAE.bits() as u64;
+		reg_values[1].Reg64 = Cr4::CR4_ENABLE_PAE.bits() as u64;
 		reg_names[2] = WHV_REGISTER_NAME::WHvX64RegisterCr0;
-		reg_values[2].Reg64 = (CR0_PROTECTED_MODE
-			| CR0_ENABLE_PAGING
-			| CR0_EXTENSION_TYPE
-			| CR0_NUMERIC_ERROR)
+		reg_values[2].Reg64 = (Cr0::CR0_PROTECTED_MODE
+			| Cr0::CR0_ENABLE_PAGING
+			| Cr0::CR0_EXTENSION_TYPE
+			| Cr0::CR0_NUMERIC_ERROR)
 			.bits() as u64;
 		reg_names[3] = WHV_REGISTER_NAME::WHvX64RegisterEfer;
 		reg_values[3].Reg64 = EFER_LME | EFER_LMA;

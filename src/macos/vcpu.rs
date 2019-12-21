@@ -7,10 +7,12 @@ use hypervisor::consts::vmx_exit::*;
 use hypervisor::{read_vmx_cap, vCPU, x86Reg, VMXCap};
 use std;
 use vm::VirtualCPU;
-use x86::shared::control_regs::*;
-use x86::shared::msr::*;
-use x86::shared::segmentation::*;
-use x86::shared::PrivilegeLevel;
+use x86::controlregs::*;
+use x86::msr::*;
+use x86::segmentation::*;
+use x86::Ring;
+
+const IA32_CSTAR: u32 = 0xc0000083;
 
 fn allows_one_setting(msr_val: u64, bitpos: u32) -> bool {
 	if (msr_val & (1u64 << (bitpos + 32))) != 0 {
@@ -219,37 +221,37 @@ impl EhyveCPU {
 		self.vcpu
 			.write_register(
 				&x86Reg::CS,
-				SegmentSelector::new(GDT_KERNEL_CODE as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_register(
 				&x86Reg::DS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_register(
 				&x86Reg::ES,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_register(
 				&x86Reg::SS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_register(
 				&x86Reg::FS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_register(
 				&x86Reg::GS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, PrivilegeLevel::Ring0).bits() as u64,
+				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 			)
 			.or_else(to_error)?;
 
@@ -259,9 +261,9 @@ impl EhyveCPU {
 	fn setup_system_64bit(&mut self) -> Result<()> {
 		debug!("Setup 64bit mode");
 
-		let cr0 = (CR0_PROTECTED_MODE | CR0_ENABLE_PAGING | CR0_EXTENSION_TYPE | CR0_NUMERIC_ERROR)
+		let cr0 = (Cr0::CR0_PROTECTED_MODE | Cr0::CR0_ENABLE_PAGING | Cr0::CR0_EXTENSION_TYPE | Cr0::CR0_NUMERIC_ERROR)
 			.bits() as u64;
-		let cr4 = CR4_ENABLE_PAE.bits() as u64;
+		let cr4 = Cr4::CR4_ENABLE_PAE.bits() as u64;
 
 		self.vcpu
 			.write_vmcs(VMCS_GUEST_IA32_EFER, EFER_LME | EFER_LMA)
@@ -270,23 +272,23 @@ impl EhyveCPU {
 		self.vcpu
 			.write_vmcs(
 				VMCS_CTRL_CR0_MASK,
-				(CR0_PROTECTED_MODE | CR0_ENABLE_PAGING).bits() as u64,
+				(Cr0::CR0_PROTECTED_MODE | Cr0::CR0_ENABLE_PAGING).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_vmcs(
 				VMCS_CTRL_CR0_SHADOW,
-				(CR0_PROTECTED_MODE | CR0_ENABLE_PAGING).bits() as u64,
+				(Cr0::CR0_PROTECTED_MODE | Cr0::CR0_ENABLE_PAGING).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_vmcs(
 				VMCS_CTRL_CR4_MASK,
-				(CR4_ENABLE_VMX | CR4_ENABLE_PAE).bits() as u64,
+				(Cr4::CR4_ENABLE_VMX | Cr4::CR4_ENABLE_PAE).bits() as u64,
 			)
 			.or_else(to_error)?;
 		self.vcpu
-			.write_vmcs(VMCS_CTRL_CR4_SHADOW, CR4_ENABLE_PAE.bits() as u64)
+			.write_vmcs(VMCS_CTRL_CR4_SHADOW, Cr4::CR4_ENABLE_PAE.bits() as u64)
 			.or_else(to_error)?;
 
 		self.vcpu

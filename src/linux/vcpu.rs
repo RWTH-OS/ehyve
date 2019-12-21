@@ -5,7 +5,7 @@ use libkvm::vcpu;
 use linux::KVM;
 use std;
 use vm::VirtualCPU;
-use x86::shared::control_regs::*;
+use x86::controlregs::*;
 
 const CPUID_EXT_HYPERVISOR: u32 = 1 << 31;
 
@@ -70,9 +70,9 @@ impl EhyveCPU {
 
 		let mut sregs = self.vcpu.get_kvm_sregs().unwrap();
 
-		let cr0 = (CR0_PROTECTED_MODE | CR0_ENABLE_PAGING | CR0_EXTENSION_TYPE | CR0_NUMERIC_ERROR)
+		let cr0 = (Cr0::CR0_PROTECTED_MODE | Cr0::CR0_ENABLE_PAGING | Cr0::CR0_EXTENSION_TYPE | Cr0::CR0_NUMERIC_ERROR)
 			.bits() as u64;
-		let cr4 = CR4_ENABLE_PAE.bits() as u64;
+		let cr4 = Cr4::CR4_ENABLE_PAE.bits() as u64;
 
 		sregs.cr3 = BOOT_PML4;
 		sregs.cr4 = cr4;
