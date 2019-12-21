@@ -22,7 +22,7 @@ all:
 	@cargo build $(opt)
 
 clean:
-	$(RM) target
+	@cargo clean
 
 docs:
 	@echo DOC
