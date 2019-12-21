@@ -16,7 +16,7 @@ pub struct Ehyve {
 }
 
 impl Ehyve {
-	pub fn new(path: String, mem_size: usize, num_cpus: u32) -> Result<Ehyve> {
+	pub fn new(path: String, mem_size: usize, num_cpus: u32, _file_path: Option<String>) -> Result<Ehyve> {
 		let mem = unsafe {
 			libc::mmap(
 				std::ptr::null_mut(),
@@ -87,8 +87,13 @@ impl Vm for Ehyve {
 		&self.path
 	}
 
-	fn create_cpu(&self, id: u32) -> Result<Box<VirtualCPU>> {
+	fn create_cpu(&self, id: u32) -> Result<Box<dyn VirtualCPU>> {
 		Ok(Box::new(EhyveCPU::new(id)))
+	}
+
+	fn file(&self) -> (u64, u64) {
+		// just a workaround
+		(0, 0)
 	}
 }
 
