@@ -18,10 +18,11 @@ $ xcode-select --install
 ```
 
 Additionally, the included hypervisor bases on the [Hypervisor Framework](https://developer.apple.com/documentation/hypervisor) depending on OS X Yosemite (10.10) or newer.
-Please activate this feature as *root* by using the following command on your system:
+To verify if your processor is able to support this framework, run and expect the following in your Terminal:
 
 ```sh
-$ sysctl kern.hv_support=1
+$ sysctl kern.hv_support
+kern.hv_support: 1
 ```
 
 ### Windows
