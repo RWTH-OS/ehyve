@@ -555,7 +555,7 @@ impl VirtualCPU for EhyveCPU {
 					let gpa = self.vcpu.read_vmcs(VMCS_GUEST_PHYSICAL_ADDRESS).unwrap();
 					trace!("Exit reason {} - EPT violation at 0x{:x}", reason, gpa);
 
-					//TODO: Check, if we have an MMIO access
+					//TODO: Check, if we have MMIO access
 				}
 				vmx_exit::VMX_REASON_IO => {
 					let qualification = self.vcpu.read_vmcs(VMCS_RO_EXIT_QUALIFIC).unwrap();
