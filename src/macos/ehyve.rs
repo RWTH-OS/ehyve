@@ -2,9 +2,9 @@ use error::*;
 use libc;
 use libc::c_void;
 use macos::vcpu::*;
+use memmap::MmapOptions;
 use std;
 use std::fs::File;
-use std::io::prelude::*;
 use vm::{VirtualCPU, Vm};
 use xhypervisor::{create_vm, map_mem, unmap_mem, MemPerm};
 
@@ -12,6 +12,7 @@ pub struct Ehyve {
 	entry_point: u64,
 	mem_size: usize,
 	guest_mem: *mut c_void,
+	file_mmap: Option<memmap::Mmap>,
 	num_cpus: u32,
 	path: String,
 }
@@ -21,7 +22,7 @@ impl Ehyve {
 		path: String,
 		mem_size: usize,
 		num_cpus: u32,
-		_file_path: Option<String>,
+		file_path: Option<String>,
 	) -> Result<Ehyve> {
 		let mem = unsafe {
 			libc::mmap(
@@ -41,36 +42,57 @@ impl Ehyve {
 
 		debug!("Allocate memory for the guest at 0x{:x}", mem as usize);
 
-		let mut hyve = Ehyve {
-			entry_point: 0,
-			mem_size: mem_size,
-			guest_mem: mem,
-			num_cpus: num_cpus,
-			path: path,
-		};
-
-		hyve.init()?;
-
-		Ok(hyve)
-	}
-
-	fn init(&mut self) -> Result<()> {
 		debug!("Create VM...");
 		create_vm().or_else(to_error)?;
 
 		debug!("Map guest memory...");
 		unsafe {
 			map_mem(
-				std::slice::from_raw_parts(self.guest_mem as *mut u8, self.mem_size),
+				std::slice::from_raw_parts(mem as *mut u8, mem_size),
 				0,
 				&MemPerm::ExecAndWrite,
 			)
 			.or_else(to_error)?;
 		}
 
-		self.init_guest_mem();
+		let file_mmap = match &file_path {
+			Some(fname) => {
+				debug!("Map {} into the guest space", fname);
 
-		Ok(())
+				let f = File::open(fname.clone())
+					.map_err(|_| Error::InvalidFile(fname.clone().into()))?;
+				
+				let mmap = unsafe { MmapOptions::new().map(&f).unwrap() };
+
+				info!("File is mapped at address 0x{:x}", mmap.as_ptr() as u64);
+			
+				unsafe {
+					map_mem(
+						std::slice::from_raw_parts(mmap.as_ptr(), mmap.len()),
+						mem_size as u64,
+						&MemPerm::Read,
+					)
+					.or_else(to_error)?;
+				}
+				Some(mmap)
+			}
+			None => {
+				None
+			}
+		};
+
+		let hyve = Ehyve {
+			entry_point: 0,
+			mem_size: mem_size,
+			guest_mem: mem,
+			file_mmap: file_mmap,
+			num_cpus: num_cpus,
+			path: path,
+		};
+
+		hyve.init_guest_mem();
+
+		Ok(hyve)
 	}
 }
 
@@ -100,8 +122,15 @@ impl Vm for Ehyve {
 	}
 
 	fn file(&self) -> (u64, u64) {
-		// just a workaround
-		(0, 0)
+		// do we mount a file into the guest memory?
+		match &self.file_mmap {
+			Some(mmap) => {
+				(self.mem_size as u64, mmap.len() as u64)
+			}
+			_ => {
+				(0, 0)
+			}
+		}
 	}
 }
 
@@ -110,6 +139,14 @@ impl Drop for Ehyve {
 		debug!("Drop virtual machine");
 
 		unmap_mem(0, self.mem_size).unwrap();
+
+		// do we mount a file into the guest memory?
+		match &self.file_mmap {
+			Some(mmap) => {
+				unmap_mem(self.mem_size as u64, mmap.len()).unwrap();
+			}
+			_ => {}
+		}
 
 		unsafe {
 			libc::munmap(self.guest_mem, self.mem_size);
