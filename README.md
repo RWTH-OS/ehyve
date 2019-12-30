@@ -4,7 +4,7 @@
 
 ## Introduction
 
-ehyve is small hypervisor to boot the operating systems [eduOS-rs](https://github.com/RWTH-OS/eduOS-rs), which is a Unix-like operating system based on a monolithic architecture for educational purposes. ehyve is tested under Linux, and Windows. The macOS is currently not finalized and currently under development.
+ehyve is small hypervisor to boot the operating systems [eduOS-rs](https://github.com/RWTH-OS/eduOS-rs), which is a Unix-like operating system based on a monolithic architecture for educational purposes. ehyve is tested under Linux, macOS, and Windows.
 
 ## Requirements
 
