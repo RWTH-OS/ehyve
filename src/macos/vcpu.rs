@@ -203,7 +203,7 @@ impl EhyveCPU {
 			| Cr0::CR0_ENABLE_PAGING
 			| Cr0::CR0_EXTENSION_TYPE
 			| Cr0::CR0_NUMERIC_ERROR;
-		let cr4 = Cr4::CR4_ENABLE_PAE;
+		let cr4 = Cr4::CR4_ENABLE_PAE|Cr4::CR4_ENABLE_VMX;
 
 		self.vcpu
 			.write_vmcs(VMCS_GUEST_IA32_EFER, EFER_LME | EFER_LMA)
@@ -219,7 +219,7 @@ impl EhyveCPU {
 			.write_vmcs(VMCS_CTRL_CR0_SHADOW, cr0.bits() as u64)
 			.or_else(to_error)?;
 		self.vcpu
-			.write_vmcs(VMCS_CTRL_CR4_MASK, (Cr4::CR4_ENABLE_VMX | cr4).bits() as u64)
+			.write_vmcs(VMCS_CTRL_CR4_MASK, cr4.bits() as u64)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_vmcs(VMCS_CTRL_CR4_SHADOW, cr4.bits() as u64)
@@ -346,9 +346,9 @@ impl VirtualCPU for EhyveCPU {
 		self.vcpu
 			.write_vmcs(VMCS_CTRL_TPR_THRESHOLD, 0)
 			.or_else(to_error)?;
-		self.vcpu
+		/*self.vcpu
 			.write_vmcs(VMCS_GUEST_LINK_POINTER, !0x0u64)
-			.or_else(to_error)?;
+			.or_else(to_error)?;*/
 		self.vcpu
 			.write_vmcs(VMCS_GUEST_SYSENTER_EIP, 0)
 			.or_else(to_error)?;
@@ -426,8 +426,15 @@ impl VirtualCPU for EhyveCPU {
 			self.vcpu.run().or_else(to_error)?;
 
 			let reason = self.vcpu.read_vmcs(VMCS_RO_EXIT_REASON).expect("read vmcs error") & 0xffff;
+			let rip = self.vcpu.read_register(&x86Reg::RIP).unwrap();
 
 			match reason {
+				vmx_exit::VMX_REASON_IRQ => {
+					debug!(
+						"Exit reason {} - External interrupt",
+						reason
+					);
+				}
 				vmx_exit::VMX_REASON_VMENTRY_GUEST => {
 					error!(
 						"Exit reason {} - VM-entry failure due to invalid guest state",
@@ -436,11 +443,39 @@ impl VirtualCPU for EhyveCPU {
 					self.print_registers();
 					return Err(Error::InternalError);
 				}
+				vmx_exit::VMX_REASON_EPT_VIOLATION => {
+					let gpa = self.vcpu.read_vmcs(VMCS_GUEST_PHYSICAL_ADDRESS).expect("read vmcs error");
+					debug!(
+						"Exit reason {} - EPT violation at 0x{:x}",
+						reason, gpa
+					);
+
+					//TODO: Check, if we have an MMIO access
+				}
 				vmx_exit::VMX_REASON_IO => {
 					let qualification = self.vcpu.read_vmcs(VMCS_RO_EXIT_QUALIFIC).unwrap();
-					//let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
+					let input = (qualification & 8) != 0;
+					let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
+					let port: u16 =  ((qualification >> 16) & 0xFFFF) as u16;
 
-					info!("qualification 0x{:x}", qualification);
+					if input == true {
+						error!("Invalid I/O operation");
+						return Err(Error::InternalError);
+					}
+
+					match port {
+						SHUTDOWN_PORT => {
+							return Ok(());
+						}
+						_ => {
+							let al = (self.vcpu.read_register(&x86Reg::RAX).unwrap() & 0xFF) as u8;
+							let mut msg = vec![];
+							msg.push(al);
+
+							self.io_exit(port, std::str::from_utf8(&msg).unwrap().to_string())?;
+							self.vcpu.write_register(&x86Reg::RIP, rip+len).unwrap();
+						}
+					}
 				}
 				_ => {
 					error!("Unhandled exit: {}", reason);
