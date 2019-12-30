@@ -17,6 +17,8 @@ pub const EFER_LMA: u64 = (1 << 10); /* Long mode active (read-only) */
 pub const EFER_NXE: u64 = (1 << 11); /* PTE No-Execute bit enable */
 pub const COM_PORT: u16 = 0x3f8;
 pub const SHUTDOWN_PORT: u16 = 0xf4;
+pub const PIC_MASTER_PORT: u16 = 0x20;
+pub const PIC_SLAVE_PORT: u16 = 0xA0;
 
 /*
  * Intel long mode page directory/table entries
