@@ -1,6 +1,6 @@
-#[cfg(target_os = "macos")]
-use hypervisor;
 use std::{fmt, result};
+#[cfg(target_os = "macos")]
+use xhypervisor;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -8,26 +8,32 @@ pub type Result<T> = result::Result<T, Error>;
 pub enum Error {
 	FileMissing,
 	InternalError,
+	OsError(i32),
 	InvalidFile(String),
 	NotEnoughMemory,
 	MissingFrequency,
 	#[cfg(target_os = "macos")]
-	Hypervisor(hypervisor::Error),
-	UnknownExitReason(u32),
+	Hypervisor(xhypervisor::Error),
+	UnknownExitReason,
 	UnknownIOPort(u16),
-	KVMInitFailed,
-	KVMUnableToCreateVM,
-	KVMUnableToCreateIrqChip,
-	KVMUnableToCreatePit2,
 	Shutdown,
 	ParseMemory,
 	UnhandledExitReason,
 }
 
+#[cfg(target_os = "linux")]
+pub fn to_error<T>(err: std::io::Error) -> Result<T> {
+	if let Some(raw_os_err) = err.raw_os_error() {
+		Err(Error::OsError(raw_os_err))
+	} else {
+		Err(Error::InternalError)
+	}
+}
+
 #[cfg(target_os = "macos")]
-pub fn to_error(err: hypervisor::Error) -> Result<()> {
+pub fn to_error(err: xhypervisor::Error) -> Result<()> {
 	match err {
-		hypervisor::Error::Success => Ok(()),
+		xhypervisor::Error::Success => Ok(()),
 		_ => Err(Error::Hypervisor(err)),
 	}
 }
@@ -37,6 +43,7 @@ impl fmt::Display for Error {
 		match *self {
 			Error::FileMissing => write!(f, "No execution file given"),
 			Error::InternalError => write!(f, "An internal error has occurred, please report."),
+			Error::OsError(ref err) => write!(f, "Error from OS: {}", err),
 			Error::InvalidFile(ref file) => {
 				write!(f, "The file {} was not found or is invalid.", file)
 			}
@@ -50,15 +57,9 @@ impl fmt::Display for Error {
 			),
 			#[cfg(target_os = "macos")]
 			Error::Hypervisor(ref err) => write!(f, "The hypervisor has failed: {:?}", err),
-			Error::UnknownExitReason(ref exit_reason) => {
-				write!(f, "Unknown exit reason {:?}.", exit_reason)
-			}
+			Error::UnknownExitReason => write!(f, "Unknown exit reason ."),
 			Error::UnknownIOPort(ref port) => write!(f, "Unknown io port 0x{:x}.", port),
 			Error::Shutdown => write!(f, "Receives shutdown command"),
-			Error::KVMInitFailed => write!(f, "Unable to initialize KVM"),
-			Error::KVMUnableToCreateVM => write!(f, "Unable to create VM"),
-			Error::KVMUnableToCreateIrqChip => write!(f, "Unable to create irqchip"),
-			Error::KVMUnableToCreatePit2 => write!(f, "Unable to create pit2"),
 			Error::ParseMemory => write!(
 				f,
 				"Couldn't parse the guest memory size from the environment"

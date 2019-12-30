@@ -2,19 +2,19 @@
 //! create a Virtual Machine and load the kernel.
 
 use error::*;
+use kvm_bindings::*;
+use kvm_ioctls::VmFd;
 use libc;
-use libkvm::linux::kvm_bindings::KVM_MEM_READONLY;
-use libkvm::mem::MemorySlot;
-use libkvm::vm::VirtualMachine;
 use linux::vcpu::*;
 use linux::KVM;
 use std;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;
 use vm::{VirtualCPU, Vm};
 
 pub struct Ehyve {
-	vm: VirtualMachine,
+	vm: VmFd,
 	entry_point: u64,
 	mem: MmapMemorySlot,
 	file: MmapMemorySlot,
@@ -29,18 +29,25 @@ impl Ehyve {
 		num_cpus: u32,
 		file_path: Option<String>,
 	) -> Result<Ehyve> {
-		let api = KVM.api_version().unwrap();
-		debug!("KVM API version {}", api);
+		let vm = KVM.create_vm().or_else(to_error)?;
 
-		let vm = KVM.create_vm().unwrap();
-
-		if KVM.check_cap_set_tss_address().unwrap() > 0 {
+		let mut cap: kvm_enable_cap = Default::default();
+		cap.cap = KVM_CAP_SET_TSS_ADDR;
+		if vm.enable_cap(&cap).is_ok() {
 			debug!("Setting TSS address");
-			vm.set_tss_address(0xfffbd000).unwrap();
+			vm.set_tss_address(0xfffbd000).or_else(to_error)?;
 		}
 
 		let mem = MmapMemorySlot::new(0, 0, mem_size, 0);
-		vm.set_user_memory_region(&mem).unwrap();
+		let kvm_mem = kvm_userspace_memory_region {
+			slot: mem.id,
+			flags: mem.flags(),
+			memory_size: mem.memory_size() as u64,
+			guest_phys_addr: mem.guest_address() as u64,
+			userspace_addr: mem.host_address() as u64,
+		};
+
+		unsafe { vm.set_user_memory_region(kvm_mem) }.or_else(to_error)?;
 
 		let file = match file_path {
 			Some(fname) => {
@@ -62,8 +69,17 @@ impl Ehyve {
 				// load file
 				f.read(slot.as_slice_mut())
 					.map_err(|_| Error::InvalidFile(fname.clone().into()))?;
+				let kvm_mem = kvm_userspace_memory_region {
+					slot: slot.id,
+					flags: slot.flags(),
+					memory_size: slot.memory_size() as u64,
+					guest_phys_addr: slot.guest_address() as u64,
+					userspace_addr: slot.host_address() as u64,
+				};
 				// map file into the guest space
-				vm.set_user_memory_region(&slot).unwrap();
+				unsafe {
+					vm.set_user_memory_region(kvm_mem).unwrap();
+				}
 
 				slot
 			}
@@ -95,15 +111,18 @@ impl Ehyve {
 
 		debug!("Initialize interrupt controller");
 
-		match self.vm.create_irqchip() {
-			Err(_) => return Err(Error::KVMUnableToCreateIrqChip),
-			_ => {}
-		};
+		// create basic interrupt controller
+		self.vm.create_irq_chip().or_else(to_error)?;
+		let pit_config = kvm_pit_config::default();
+		self.vm.create_pit2(pit_config).or_else(to_error)?;
 
-		match self.vm.create_pit2() {
-			Err(_) => return Err(Error::KVMUnableToCreatePit2),
-			_ => {}
-		};
+		// currently, we support only system, which provides the
+		// cpu feature TSC_DEADLINE
+		let mut cap: kvm_enable_cap = Default::default();
+		cap.cap = KVM_CAP_TSC_DEADLINE_TIMER;
+		if self.vm.enable_cap(&cap).is_ok() {
+			panic!("Processor feature \"tsc deadline\" isn't supported!")
+		}
 
 		Ok(())
 	}
@@ -131,7 +150,12 @@ impl Vm for Ehyve {
 	}
 
 	fn create_cpu(&self, id: u32) -> Result<Box<dyn VirtualCPU>> {
-		Ok(Box::new(EhyveCPU::new(id, self.vm.create_vcpu().unwrap())))
+		Ok(Box::new(EhyveCPU::new(
+			id,
+			self.vm
+				.create_vcpu(id.try_into().unwrap())
+				.or_else(to_error)?,
+		)))
 	}
 
 	fn file(&self) -> (u64, u64) {
@@ -186,9 +210,7 @@ impl MmapMemorySlot {
 	fn as_slice_mut(&mut self) -> &mut [u8] {
 		unsafe { std::slice::from_raw_parts_mut(self.host_address as *mut u8, self.memory_size) }
 	}
-}
 
-impl MemorySlot for MmapMemorySlot {
 	fn slot_id(&self) -> u32 {
 		self.id
 	}

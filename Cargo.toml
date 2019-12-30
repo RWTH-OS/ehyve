@@ -6,24 +6,26 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 log = "0.4"
-env_logger = "0.5.10"
+env_logger = "0.7.*"
 aligned_alloc = "0.1"
 elf = "0.0.10"
 libc = "0.2.66"
 memmap = "0.7"
 lazy_static = "1.4"
 clap = "2"
-#raw-cpuid = "5.0.0"
 
 [dependencies.x86]
 version = "0.28.0"
 #default-features = false
 
-[target.'cfg(target_os = "macos")'.dependencies.hypervisor]
-path = "crates/hypervisor"
+[target.'cfg(target_os = "macos")'.dependencies.xhypervisor]
+version = "0.0.*"
 
 [target.'cfg(target_os = "windows")'.dependencies.libwhp]
 path = "crates/libwhp"
 
-[target.'cfg(target_os = "linux")'.dependencies.libkvm]
-path = "crates/libkvm"
+[target.'cfg(target_os = "linux")'.dependencies.kvm-ioctls]
+version = "0.3.*"
+
+[target.'cfg(target_os = "linux")'.dependencies.kvm-bindings]
+version = "0.*"

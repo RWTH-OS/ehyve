@@ -1,8 +1,8 @@
 pub mod ehyve;
 pub mod vcpu;
 
-use libkvm::system::*;
+use kvm_ioctls::Kvm;
 
 lazy_static! {
-	static ref KVM: KVMSystem = { KVMSystem::new().unwrap() };
+	static ref KVM: Kvm = { Kvm::new().unwrap() };
 }

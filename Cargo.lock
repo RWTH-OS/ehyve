@@ -58,6 +58,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 
 [[package]]
+name = "byteorder"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"
+
+[[package]]
 name = "cc"
 version = "1.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,20 +92,21 @@ dependencies = [
 
 [[package]]
 name = "ehyve"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "aligned_alloc",
  "clap",
  "elf",
  "env_logger",
- "hypervisor",
+ "kvm-bindings",
+ "kvm-ioctls",
  "lazy_static",
  "libc",
- "libkvm",
  "libwhp",
  "log",
  "memmap",
  "x86",
+ "xhypervisor",
 ]
 
 [[package]]
@@ -108,14 +115,14 @@ version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4841de15dbe0e49b9b62a417589299e3be0d557e0900d36acb87e6dae47197f5"
 dependencies = [
- "byteorder",
+ "byteorder 0.5.3",
 ]
 
 [[package]]
 name = "env_logger"
-version = "0.5.13"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15b0a4d2e39f8420210be8b27eeda28029729e2fd4291019455016c348240c38"
+checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
  "humantime",
@@ -134,13 +141,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hypervisor"
-version = "0.0.8"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -148,6 +148,23 @@ checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
+]
+
+[[package]]
+name = "kvm-bindings"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d381156ad52005b4655a9421401f02b80f9f049e653496e3ea6639a83fc12453"
+
+[[package]]
+name = "kvm-ioctls"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43e647ed90b0f5214eb938601fc2e7aad2fc624fde62f13c0c2e672407b8ce7b"
+dependencies = [
+ "kvm-bindings",
+ "libc",
+ "vmm-sys-util",
 ]
 
 [[package]]
@@ -163,17 +180,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
 
 [[package]]
-name = "libkvm"
-version = "0.0.1"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "libwhp"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "bitflags",
+ "byteorder 1.2.1",
  "libc",
 ]
 
@@ -307,6 +318,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
 
 [[package]]
+name = "vmm-sys-util"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4588e216e77682850f4ae35ec855c2517f93d671a2578d2a32d20bf8a73de38"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "winapi"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -368,4 +388,13 @@ dependencies = [
  "bit_field",
  "bitflags",
  "raw-cpuid",
+]
+
+[[package]]
+name = "xhypervisor"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "643a7272630495dac4765f4f6b020b54af2c4d71fd29ef6b6141ade280355f8a"
+dependencies = [
+ "libc",
 ]
