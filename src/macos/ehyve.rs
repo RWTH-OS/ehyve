@@ -1,5 +1,4 @@
 use error::*;
-use xhypervisor::{create_vm, map_mem, unmap_mem, MemPerm};
 use libc;
 use libc::c_void;
 use macos::vcpu::*;
@@ -7,6 +6,7 @@ use std;
 use std::fs::File;
 use std::io::prelude::*;
 use vm::{VirtualCPU, Vm};
+use xhypervisor::{create_vm, map_mem, unmap_mem, MemPerm};
 
 pub struct Ehyve {
 	entry_point: u64,

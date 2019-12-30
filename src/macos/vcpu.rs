@@ -1,18 +1,21 @@
 use consts::*;
 use error::*;
-use xhypervisor;
-use xhypervisor::consts::vmcs::*;
-use xhypervisor::consts::vmx_cap::{PIN_BASED_INTR,PIN_BASED_NMI,PIN_BASED_VIRTUAL_NMI,
-	CPU_BASED_SECONDARY_CTLS,CPU_BASED_MWAIT,CPU_BASED_MONITOR,CPU_BASED_TSC_OFFSET,
-	CPU_BASED_TPR_SHADOW,VMENTRY_LOAD_EFER,VMENTRY_GUEST_IA32E};
-use xhypervisor::consts::vmx_exit;
-use xhypervisor::{read_vmx_cap, vCPU, x86Reg};
 use std;
 use vm::VirtualCPU;
 use x86::controlregs::*;
+use x86::cpuid::*;
 use x86::msr::*;
 use x86::segmentation::*;
 use x86::Ring;
+use xhypervisor;
+use xhypervisor::consts::vmcs::*;
+use xhypervisor::consts::vmx_cap::{
+	CPU_BASED_MONITOR, CPU_BASED_MWAIT, CPU_BASED_SECONDARY_CTLS, CPU_BASED_TPR_SHADOW,
+	CPU_BASED_TSC_OFFSET, PIN_BASED_INTR, PIN_BASED_NMI, PIN_BASED_VIRTUAL_NMI,
+	VMENTRY_GUEST_IA32E, VMENTRY_LOAD_EFER,
+};
+use xhypervisor::consts::vmx_exit;
+use xhypervisor::{read_vmx_cap, vCPU, x86Reg};
 
 /* desired control word constrained by hardware/hypervisor capabilities */
 fn cap2ctrl(cap: u64, ctrl: u64) -> u64 {
@@ -22,25 +25,27 @@ fn cap2ctrl(cap: u64, ctrl: u64) -> u64 {
 lazy_static! {
 	static ref CAP_PINBASED: u64 = {
 		let cap: u64 = { read_vmx_cap(&xhypervisor::VMXCap::PINBASED).unwrap() };
-		cap2ctrl(cap, PIN_BASED_INTR|PIN_BASED_NMI|PIN_BASED_VIRTUAL_NMI)
+		cap2ctrl(cap, PIN_BASED_INTR | PIN_BASED_NMI | PIN_BASED_VIRTUAL_NMI)
 	};
-
 	static ref CAP_PROCBASED: u64 = {
 		let cap: u64 = { read_vmx_cap(&xhypervisor::VMXCap::PROCBASED).unwrap() };
-		cap2ctrl(cap, CPU_BASED_SECONDARY_CTLS|CPU_BASED_MWAIT|CPU_BASED_MONITOR|
-			CPU_BASED_TSC_OFFSET|CPU_BASED_TPR_SHADOW)
+		cap2ctrl(
+			cap,
+			CPU_BASED_SECONDARY_CTLS
+				| CPU_BASED_MWAIT
+				| CPU_BASED_MONITOR
+				| CPU_BASED_TSC_OFFSET
+				| CPU_BASED_TPR_SHADOW,
+		)
 	};
-
 	static ref CAP_PROCBASED2: u64 = {
 		let cap: u64 = { read_vmx_cap(&xhypervisor::VMXCap::PROCBASED2).unwrap() };
 		cap2ctrl(cap, 0)
 	};
-
 	static ref CAP_ENTRY: u64 = {
 		let cap: u64 = { read_vmx_cap(&xhypervisor::VMXCap::ENTRY).unwrap() };
-		cap2ctrl(cap, VMENTRY_LOAD_EFER|VMENTRY_GUEST_IA32E)
+		cap2ctrl(cap, VMENTRY_LOAD_EFER | VMENTRY_GUEST_IA32E)
 	};
-
 	static ref CAP_EXIT: u64 = {
 		let cap: u64 = { read_vmx_cap(&xhypervisor::VMXCap::EXIT).unwrap() };
 		cap2ctrl(cap, 0)
@@ -49,6 +54,7 @@ lazy_static! {
 
 pub struct EhyveCPU {
 	id: u32,
+	extint_pending: bool,
 	vcpu: vCPU,
 }
 
@@ -56,6 +62,7 @@ impl EhyveCPU {
 	pub fn new(id: u32) -> EhyveCPU {
 		EhyveCPU {
 			id: id,
+			extint_pending: false,
 			vcpu: vCPU::new().unwrap(),
 		}
 	}
@@ -203,7 +210,7 @@ impl EhyveCPU {
 			| Cr0::CR0_ENABLE_PAGING
 			| Cr0::CR0_EXTENSION_TYPE
 			| Cr0::CR0_NUMERIC_ERROR;
-		let cr4 = Cr4::CR4_ENABLE_PAE|Cr4::CR4_ENABLE_VMX;
+		let cr4 = Cr4::CR4_ENABLE_PAE | Cr4::CR4_ENABLE_VMX;
 
 		self.vcpu
 			.write_vmcs(VMCS_GUEST_IA32_EFER, EFER_LME | EFER_LMA)
@@ -282,9 +289,7 @@ impl EhyveCPU {
 		self.vcpu
 			.enable_native_msr(IA32_FMASK, true)
 			.or_else(to_error)?;
-		self.vcpu
-			.enable_native_msr(TSC, true)
-			.or_else(to_error)?;
+		self.vcpu.enable_native_msr(TSC, true).or_else(to_error)?;
 		self.vcpu
 			.enable_native_msr(IA32_TSC_AUX, true)
 			.or_else(to_error)?;
@@ -333,6 +338,78 @@ impl EhyveCPU {
 
 		Ok(())
 	}
+
+	fn emulate_cpuid(&mut self, rip: u64) -> Result<()> {
+		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
+		let rax = self.vcpu.read_register(&x86Reg::RAX).unwrap();
+		let rcx = self.vcpu.read_register(&x86Reg::RCX).unwrap();
+		let result = native_cpuid::cpuid_count(rax as u32, rcx as u32);
+
+		let rax = result.eax as u64;
+		let rbx = result.ebx as u64;
+		let rcx = result.ecx as u64;
+		let rdx = result.edx as u64;
+
+		self.vcpu.write_register(&x86Reg::RAX, rax).unwrap();
+		self.vcpu.write_register(&x86Reg::RBX, rbx).unwrap();
+		self.vcpu.write_register(&x86Reg::RCX, rcx).unwrap();
+		self.vcpu.write_register(&x86Reg::RDX, rdx).unwrap();
+
+		self.vcpu.write_register(&x86Reg::RIP, rip + len).unwrap();
+
+		Ok(())
+	}
+
+	fn emulate_rdmsr(&mut self, rip: u64) -> Result<()> {
+		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
+		let rcx = self.vcpu.read_register(&x86Reg::RCX).unwrap() & 0xFFFFFFFF;
+
+		match rcx as u32 {
+			IA32_EFER => {
+				let efer = self.vcpu.read_vmcs(VMCS_GUEST_IA32_EFER).unwrap();
+				let rax = efer & 0xFFFFFFFF;
+				let rdx = efer >> 32;
+
+				self.vcpu.write_register(&x86Reg::RAX, rax).unwrap();
+				self.vcpu.write_register(&x86Reg::RDX, rdx).unwrap();
+			}
+			_ => {
+				error!("Unable to read msr 0x{:x}!", rcx);
+				return Err(Error::InternalError);
+			}
+		}
+
+		self.vcpu
+			.write_register(&x86Reg::RIP, rip + len)
+			.or_else(to_error)?;
+
+		Ok(())
+	}
+
+	fn emulate_wrmsr(&mut self, rip: u64) -> Result<()> {
+		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
+		let rcx = self.vcpu.read_register(&x86Reg::RCX).unwrap() & 0xFFFFFFFF;
+
+		match rcx as u32 {
+			IA32_EFER => {
+				let rax = self.vcpu.read_register(&x86Reg::RAX).unwrap() & 0xFFFFFFFF;
+				let rdx = self.vcpu.read_register(&x86Reg::RDX).unwrap() & 0xFFFFFFFF;
+				let efer = (rdx << 32) | rax;
+
+				self.vcpu.write_vmcs(VMCS_GUEST_IA32_EFER, efer).unwrap();
+			}
+			_ => {
+				error!("Unable to write msr 0x{:x}!", rcx);
+				return Err(Error::InternalError);
+			}
+		}
+
+		self.vcpu
+			.write_register(&x86Reg::RIP, rip + len)
+			.or_else(to_error)?;
+
+		Ok(())
+	}
 }
 
 impl VirtualCPU for EhyveCPU {
@@ -341,14 +418,11 @@ impl VirtualCPU for EhyveCPU {
 		self.setup_msr()?;
 
 		self.vcpu
-			.write_vmcs(VMCS_CTRL_EXC_BITMAP, 0) /* Double fault */
+			.write_vmcs(VMCS_CTRL_EXC_BITMAP, 0)
 			.or_else(to_error)?;
 		self.vcpu
 			.write_vmcs(VMCS_CTRL_TPR_THRESHOLD, 0)
 			.or_else(to_error)?;
-		/*self.vcpu
-			.write_vmcs(VMCS_GUEST_LINK_POINTER, !0x0u64)
-			.or_else(to_error)?;*/
 		self.vcpu
 			.write_vmcs(VMCS_GUEST_SYSENTER_EIP, 0)
 			.or_else(to_error)?;
@@ -388,12 +462,8 @@ impl VirtualCPU for EhyveCPU {
 		self.vcpu
 			.write_register(&x86Reg::RDI, 0)
 			.or_else(to_error)?;
-		self.vcpu
-			.write_register(&x86Reg::R8, 0)
-			.or_else(to_error)?;
-		self.vcpu
-			.write_register(&x86Reg::R9, 0)
-			.or_else(to_error)?;
+		self.vcpu.write_register(&x86Reg::R8, 0).or_else(to_error)?;
+		self.vcpu.write_register(&x86Reg::R9, 0).or_else(to_error)?;
 		self.vcpu
 			.write_register(&x86Reg::R10, 0)
 			.or_else(to_error)?;
@@ -423,32 +493,67 @@ impl VirtualCPU for EhyveCPU {
 
 		debug!("Run vCPU {}", self.id);
 		loop {
+			if self.extint_pending == true {
+				let irq_info = self.vcpu.read_vmcs(VMCS_CTRL_VMENTRY_IRQ_INFO).unwrap();
+				let flags = self.vcpu.read_register(&x86Reg::RFLAGS).unwrap();
+				let ignore_irq = self.vcpu.read_vmcs(VMCS_GUEST_IGNORE_IRQ).unwrap();
+
+				if ignore_irq & 1 != 1
+					&& irq_info & (1 << 31) != (1 << 31)
+					&& flags & (1 << 9) == (1 << 9)
+				{
+					// deliver timer interrupt, we don't support other kind of interrupts
+					// => see table 24-15 of the Intel Manual
+					let info = 0x20 | (0 << 8) | (1 << 31);
+					self.vcpu
+						.write_vmcs(VMCS_CTRL_VMENTRY_IRQ_INFO, info)
+						.unwrap();
+					self.extint_pending = false;
+				}
+			}
+
 			self.vcpu.run().or_else(to_error)?;
 
-			let reason = self.vcpu.read_vmcs(VMCS_RO_EXIT_REASON).expect("read vmcs error") & 0xffff;
+			let reason = self
+				.vcpu
+				.read_vmcs(VMCS_RO_EXIT_REASON)
+				.expect("read vmcs error")
+				& 0xffff;
 			let rip = self.vcpu.read_register(&x86Reg::RIP).unwrap();
 
 			match reason {
+				vmx_exit::VMX_REASON_EXC_NMI => {
+					debug!("Receive exception or non-maskable interrupt!");
+					//self.print_registers();
+
+					return Err(Error::InternalError);
+				}
+				vmx_exit::VMX_REASON_CPUID => {
+					self.emulate_cpuid(rip)?;
+				}
+				vmx_exit::VMX_REASON_RDMSR => {
+					self.emulate_rdmsr(rip)?;
+				}
+				vmx_exit::VMX_REASON_WRMSR => {
+					self.emulate_wrmsr(rip)?;
+				}
 				vmx_exit::VMX_REASON_IRQ => {
-					debug!(
-						"Exit reason {} - External interrupt",
-						reason
-					);
+					trace!("Exit reason {} - External interrupt", reason);
+
+					self.extint_pending = true;
 				}
 				vmx_exit::VMX_REASON_VMENTRY_GUEST => {
 					error!(
 						"Exit reason {} - VM-entry failure due to invalid guest state",
 						reason
 					);
-					self.print_registers();
+					//self.print_registers();
+
 					return Err(Error::InternalError);
 				}
 				vmx_exit::VMX_REASON_EPT_VIOLATION => {
-					let gpa = self.vcpu.read_vmcs(VMCS_GUEST_PHYSICAL_ADDRESS).expect("read vmcs error");
-					debug!(
-						"Exit reason {} - EPT violation at 0x{:x}",
-						reason, gpa
-					);
+					let gpa = self.vcpu.read_vmcs(VMCS_GUEST_PHYSICAL_ADDRESS).unwrap();
+					trace!("Exit reason {} - EPT violation at 0x{:x}", reason, gpa);
 
 					//TODO: Check, if we have an MMIO access
 				}
@@ -456,7 +561,7 @@ impl VirtualCPU for EhyveCPU {
 					let qualification = self.vcpu.read_vmcs(VMCS_RO_EXIT_QUALIFIC).unwrap();
 					let input = (qualification & 8) != 0;
 					let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN).unwrap();
-					let port: u16 =  ((qualification >> 16) & 0xFFFF) as u16;
+					let port: u16 = ((qualification >> 16) & 0xFFFF) as u16;
 
 					if input == true {
 						error!("Invalid I/O operation");
@@ -467,13 +572,17 @@ impl VirtualCPU for EhyveCPU {
 						SHUTDOWN_PORT => {
 							return Ok(());
 						}
-						_ => {
+						COM_PORT => {
 							let al = (self.vcpu.read_register(&x86Reg::RAX).unwrap() & 0xFF) as u8;
 							let mut msg = vec![];
 							msg.push(al);
 
 							self.io_exit(port, std::str::from_utf8(&msg).unwrap().to_string())?;
-							self.vcpu.write_register(&x86Reg::RIP, rip+len).unwrap();
+							self.vcpu.write_register(&x86Reg::RIP, rip + len).unwrap();
+						}
+						_ => {
+							trace!("Receive unhandled output command at port 0x{:x}", port);
+							self.vcpu.write_register(&x86Reg::RIP, rip + len).unwrap();
 						}
 					}
 				}
@@ -490,19 +599,27 @@ impl VirtualCPU for EhyveCPU {
 		println!("\nDump state of CPU {}", self.id);
 		println!("VMCS:");
 		println!("-----");
-		println!("CR0: mask {:016x}  shadow {:016x}",
+		println!(
+			"CR0: mask {:016x}  shadow {:016x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_CR0_MASK).unwrap(),
-			self.vcpu.read_vmcs(VMCS_CTRL_CR0_SHADOW).unwrap());
-		println!("CR4: mask {:016x}  shadow {:016x}",
+			self.vcpu.read_vmcs(VMCS_CTRL_CR0_SHADOW).unwrap()
+		);
+		println!(
+			"CR4: mask {:016x}  shadow {:016x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_CR4_MASK).unwrap(),
-			self.vcpu.read_vmcs(VMCS_CTRL_CR4_SHADOW).unwrap());
-		println!("Pinbased: {:016x}\n1st:      {:016x}\n2nd:      {:016x}",
+			self.vcpu.read_vmcs(VMCS_CTRL_CR4_SHADOW).unwrap()
+		);
+		println!(
+			"Pinbased: {:016x}\n1st:      {:016x}\n2nd:      {:016x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_PIN_BASED).unwrap(),
 			self.vcpu.read_vmcs(VMCS_CTRL_CPU_BASED).unwrap(),
-			self.vcpu.read_vmcs(VMCS_CTRL_CPU_BASED2).unwrap());
-		println!("Entry:    {:016x}\nExit:     {:016x}",
+			self.vcpu.read_vmcs(VMCS_CTRL_CPU_BASED2).unwrap()
+		);
+		println!(
+			"Entry:    {:016x}\nExit:     {:016x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_VMENTRY_CONTROLS).unwrap(),
-			self.vcpu.read_vmcs(VMCS_CTRL_VMEXIT_CONTROLS).unwrap());
+			self.vcpu.read_vmcs(VMCS_CTRL_VMEXIT_CONTROLS).unwrap()
+		);
 
 		println!("\nRegisters:");
 		println!("----------");
@@ -649,7 +766,10 @@ impl VirtualCPU for EhyveCPU {
 		let idt_base = self.vcpu.read_vmcs(VMCS_GUEST_IDTR_BASE).unwrap();
 		let idt_limit = self.vcpu.read_vmcs(VMCS_GUEST_IDTR_LIMIT).unwrap();
 		println!("idt                 {:016x}  {:08x}", idt_base, idt_limit);
-		println!("VMCS link pointer   {:016x}", self.vcpu.read_vmcs(VMCS_GUEST_LINK_POINTER).unwrap());
+		println!(
+			"VMCS link pointer   {:016x}",
+			self.vcpu.read_vmcs(VMCS_GUEST_LINK_POINTER).unwrap()
+		);
 	}
 }
 
