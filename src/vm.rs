@@ -5,7 +5,7 @@ use libc;
 use memmap::Mmap;
 use std;
 use std::fs::File;
-use std::intrinsics::volatile_store;
+use std::ptr::write_volatile;
 use std::io::Cursor;
 use std::mem;
 
@@ -106,14 +106,14 @@ pub trait Vm {
 			*((gdt_entry + 0 * mem::size_of::<*mut u64>() as u64) as *mut u64) =
 				create_gdt_entry(0, 0, 0);
 			*((gdt_entry + 1 * mem::size_of::<*mut u64>() as u64) as *mut u64) =
-				create_gdt_entry(0xA09B, 0, 0xFFFFF); /* code */
+				create_gdt_entry(0x209B, 0, 0); /* code */
 			*((gdt_entry + 2 * mem::size_of::<*mut u64>() as u64) as *mut u64) =
-				create_gdt_entry(0xC093, 0, 0xFFFFF); /* data */
+				create_gdt_entry(0x4093, 0, 0); /* data */
 
 			/*
-				* For simplicity we currently use 2MB pages and only a single
-				* PML4/PDPTE/PDE.
-				*/
+			 * For simplicity we currently use 2MB pages and only a single
+			 * PML4/PDPTE/PDE.
+			 */
 
 			libc::memset(pml4 as *mut _, 0x00, PAGE_SIZE);
 			libc::memset(pdpte as *mut _, 0x00, PAGE_SIZE);
@@ -209,13 +209,13 @@ pub trait Vm {
 						"Found latest eduOS-rs header at 0x{:x}",
 						header.paddr as usize
 					);
-					volatile_store(&mut (*kernel_header).version, 1); // memory size
-					volatile_store(&mut (*kernel_header).mem_limit, vm_mem_length as u64); // memory size
-					volatile_store(&mut (*kernel_header).num_cpus, 1);
+					write_volatile(&mut (*kernel_header).version, 1); // memory size
+					write_volatile(&mut (*kernel_header).mem_limit, vm_mem_length as u64); // memory size
+					write_volatile(&mut (*kernel_header).num_cpus, 1);
 
 					let (addr, len) = self.file();
-					volatile_store(&mut (*kernel_header).file_addr, addr);
-					volatile_store(&mut (*kernel_header).file_length, len);
+					write_volatile(&mut (*kernel_header).file_addr, addr);
+					write_volatile(&mut (*kernel_header).file_length, len);
 				}
 			}
 		}
