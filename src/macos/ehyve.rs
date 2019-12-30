@@ -61,11 +61,11 @@ impl Ehyve {
 
 				let f = File::open(fname.clone())
 					.map_err(|_| Error::InvalidFile(fname.clone().into()))?;
-				
+
 				let mmap = unsafe { MmapOptions::new().map(&f).unwrap() };
 
 				info!("File is mapped at address 0x{:x}", mmap.as_ptr() as u64);
-			
+
 				unsafe {
 					map_mem(
 						std::slice::from_raw_parts(mmap.as_ptr(), mmap.len()),
@@ -76,9 +76,7 @@ impl Ehyve {
 				}
 				Some(mmap)
 			}
-			None => {
-				None
-			}
+			None => None,
 		};
 
 		let hyve = Ehyve {
@@ -124,12 +122,8 @@ impl Vm for Ehyve {
 	fn file(&self) -> (u64, u64) {
 		// do we mount a file into the guest memory?
 		match &self.file_mmap {
-			Some(mmap) => {
-				(self.mem_size as u64, mmap.len() as u64)
-			}
-			_ => {
-				(0, 0)
-			}
+			Some(mmap) => (self.mem_size as u64, mmap.len() as u64),
+			_ => (0, 0),
 		}
 	}
 }
@@ -140,7 +134,7 @@ impl Drop for Ehyve {
 
 		unmap_mem(0, self.mem_size).unwrap();
 
-		// do we mount a file into the guest memory?
+		// do we mount a file into the guest memory? => unmap region
 		match &self.file_mmap {
 			Some(mmap) => {
 				unmap_mem(self.mem_size as u64, mmap.len()).unwrap();

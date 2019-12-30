@@ -5,9 +5,9 @@ use libc;
 use memmap::Mmap;
 use std;
 use std::fs::File;
-use std::ptr::write_volatile;
 use std::io::Cursor;
 use std::mem;
+use std::ptr::write_volatile;
 
 use consts::*;
 #[cfg(target_os = "linux")]
