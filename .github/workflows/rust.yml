@@ -31,9 +31,10 @@ jobs:
       with: 
          submodules: true
          rust-version: ${{ matrix.rust }}
-    - name: Check rustup
-      run:
-         rustup show
+         components: ${{ matrix.components || '' }}
+         targets: ${{ matrix.targets || '' }}
+    - name: Check Cargo availability
+      run: cargo --version
     - name: Build
       run:
          cargo build
