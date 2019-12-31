@@ -1,6 +1,10 @@
 name: Rust
 
-on: [push]
+on:
+  push
+  pull_request
+  schedule:
+    - cron: '0 0 * * 6'
 
 jobs:
   build:
