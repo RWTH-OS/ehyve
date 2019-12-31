@@ -1,0 +1,25 @@
+name: Windows
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v1
+      with: 
+         submodules: true
+    - name: Install toolchain
+      run: |
+         curl -sSf -o rustup-init.exe https://win.rustup.rs
+         rustup-init.exe -y --default-toolchain nightly
+    - name: Check rustup
+      run: |
+         set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+         rustup show
+    - name: Build
+      run: |
+         set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+         cargo build
