@@ -14,7 +14,7 @@ jobs:
     - name: Install toolchain
       run: |
          curl -sSf -o rustup-init.exe https://win.rustup.rs
-         rustup-init.exe -y --default-toolchain nightly
+         .\rustup-init.exe -y --default-toolchain nightly
     - name: Check rustup
       run: |
          set PATH=%PATH%;%USERPROFILE%\.cargo\bin
