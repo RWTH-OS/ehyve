@@ -1,6 +1,6 @@
 # ehyve - A minimal hypervisor for eduOS-rs
 
-[![Build Status](https://travis-ci.org/RWTH-OS/ehyve.svg?branch=master)](https://travis-ci.org/RWTH-OS/ehyve)
+[![Actions Status](https://xxx.execute-api.us-west-2.amazonaws.com/production/badge/{RWTH-OS}/{ehyve})](https://xxx.execute-api.us-west-2.amazonaws.com/production/results/{RWTH-OS}/{ehyve})
 
 ## Introduction
 
