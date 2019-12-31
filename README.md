@@ -1,6 +1,6 @@
 # ehyve - A minimal hypervisor for eduOS-rs
 
-[![Actions Status](https://github.com/RWTH-OS/ehyve/actions)](https://github.com/RWTH-OS/ehyve/workflows/Rust/badge.svg)
+[![Actions Status](https://github.com/RWTH-OS/ehyve/workflows/Rust/badge.svg)](https://github.com/RWTH-OS/ehyve/actions)
 
 ## Introduction
 
