@@ -17,10 +17,11 @@ jobs:
          submodules: true
     - name: Install toolchain
       run: curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
-    - name: Set path to the toolchain
-      run: . $HOME/.cargo/env
     - name: Check rustup
-      run: rustup show
+      run: |
+         . $HOME/.cargo/env
+         rustup show
     - name: Build
-      run:
+      run: |
+         . $HOME/.cargo/env
          cargo build
