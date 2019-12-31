@@ -1,4 +1,4 @@
-name: Unix
+name: Rust
 
 on: [push]
 
@@ -9,19 +9,17 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest,macos-latest]
+        os: [ubuntu-latest,macos-latest,windows-latest]
+        rust: [nightly]
 
     steps:
     - uses: actions/checkout@v1
       with: 
          submodules: true
-    - name: Install toolchain
-      run: curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+         rust-version: ${{ matrix.rust }}
     - name: Check rustup
-      run: |
-         . $HOME/.cargo/env
+      run:
          rustup show
     - name: Build
-      run: |
-         . $HOME/.cargo/env
+      run:
          cargo build
