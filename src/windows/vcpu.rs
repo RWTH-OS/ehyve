@@ -1,17 +1,11 @@
 use consts::*;
 use error::*;
 use libwhp::instruction_emulator::*;
-use libwhp::memory::*;
 use libwhp::*;
 use std;
 use std::borrow::BorrowMut;
-use std::io::prelude::*;
-use std::io::{self, Write};
 use vm::VirtualCPU;
-use x86::bits64::segmentation::*;
 use x86::controlregs::*;
-use x86::msr::*;
-use x86::Ring;
 
 const CPUID_EXT_HYPERVISOR: UINT32 = 1 << 31;
 
@@ -359,7 +353,7 @@ impl EmulatorCallbacks for EhyveCPU {
 		}*/
 		panic!("memory() ist currently unsupported");
 
-		S_OK
+		//S_OK
 	}
 
 	fn get_virtual_processor_registers(
@@ -404,6 +398,6 @@ impl EmulatorCallbacks for EhyveCPU {
 		*gpa = gpa1;*/
 		panic!("translate_gva_page() is currently unsupported");
 
-		S_OK
+		//S_OK
 	}
 }

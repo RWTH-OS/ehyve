@@ -1,4 +1,3 @@
-use aligned_alloc::*;
 use error::*;
 use libwhp::memory::*;
 use libwhp::*;
