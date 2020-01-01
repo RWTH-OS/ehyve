@@ -43,7 +43,7 @@ impl Ehyve {
 		debug!("Allocate memory for the guest at 0x{:x}", mem as usize);
 
 		debug!("Create VM...");
-		create_vm().or_else(to_error)?;
+		create_vm()?;
 
 		debug!("Map guest memory...");
 		unsafe {
@@ -51,8 +51,7 @@ impl Ehyve {
 				std::slice::from_raw_parts(mem as *mut u8, mem_size),
 				0,
 				&MemPerm::ExecAndWrite,
-			)
-			.or_else(to_error)?;
+			)?;
 		}
 
 		let file_mmap = match &file_path {
@@ -71,8 +70,7 @@ impl Ehyve {
 						std::slice::from_raw_parts(mmap.as_ptr(), mmap.len()),
 						mem_size as u64,
 						&MemPerm::Read,
-					)
-					.or_else(to_error)?;
+					)?;
 				}
 				Some(mmap)
 			}
