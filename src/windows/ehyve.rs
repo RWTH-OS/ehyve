@@ -1,13 +1,10 @@
 use aligned_alloc::*;
-use consts::*;
 use error::*;
-use libc::c_void;
 use libwhp::memory::*;
 use libwhp::*;
 use std;
 use std::fs::File;
 use std::io::Read;
-use std::mem;
 use std::rc::Rc;
 use vm::{VirtualCPU, Vm};
 use windows::vcpu::*;
@@ -187,7 +184,7 @@ impl Vm for Ehyve {
 		&self.path
 	}
 
-	fn create_cpu(&self, id: u32) -> Result<Box<VirtualCPU>> {
+	fn create_cpu(&self, id: u32) -> Result<Box<dyn VirtualCPU>> {
 		let vcpu = self.partition.create_virtual_processor(id).unwrap();
 		Ok(Box::new(EhyveCPU::new(id, vcpu)))
 	}
