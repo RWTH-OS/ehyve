@@ -1,5 +1,5 @@
-use std::{fmt, result};
 use std::convert::From;
+use std::{fmt, result};
 #[cfg(target_os = "macos")]
 use xhypervisor;
 
@@ -33,9 +33,9 @@ pub fn to_error<T>(err: std::io::Error) -> Result<T> {
 
 #[cfg(target_os = "macos")]
 impl From<xhypervisor::Error> for Error {
-    fn from(err: xhypervisor::Error) -> Self {
-        Error::Hypervisor(err)
-    }
+	fn from(err: xhypervisor::Error) -> Self {
+		Error::Hypervisor(err)
+	}
 }
 
 impl fmt::Display for Error {

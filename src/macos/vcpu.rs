@@ -90,11 +90,10 @@ impl EhyveCPU {
 		self.vcpu.write_vmcs(VMCS_GUEST_GS_AR, 0x4093)?;
 
 		self.vcpu.write_vmcs(VMCS_GUEST_GDTR_BASE, BOOT_GDT)?;
-		self.vcpu
-			.write_vmcs(
-				VMCS_GUEST_GDTR_LIMIT,
-				((std::mem::size_of::<u64>() * BOOT_GDT_MAX as usize) - 1) as u64,
-			)?;
+		self.vcpu.write_vmcs(
+			VMCS_GUEST_GDTR_LIMIT,
+			((std::mem::size_of::<u64>() * BOOT_GDT_MAX as usize) - 1) as u64,
+		)?;
 		self.vcpu.write_vmcs(VMCS_GUEST_IDTR_BASE, 0)?;
 		self.vcpu.write_vmcs(VMCS_GUEST_IDTR_LIMIT, 0xffff)?;
 
@@ -108,36 +107,30 @@ impl EhyveCPU {
 		self.vcpu.write_vmcs(VMCS_GUEST_LDTR_AR, 0x82)?;
 		self.vcpu.write_vmcs(VMCS_GUEST_LDTR_BASE, 0)?;
 		// Reload the segment descriptors
-		self.vcpu
-			.write_register(
-				&x86Reg::CS,
-				SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring::Ring0).bits() as u64,
-			)?;
-		self.vcpu
-			.write_register(
-				&x86Reg::DS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
-			)?;
-		self.vcpu
-			.write_register(
-				&x86Reg::ES,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
-			)?;
-		self.vcpu
-			.write_register(
-				&x86Reg::SS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
-			)?;
-		self.vcpu
-			.write_register(
-				&x86Reg::FS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
-			)?;
-		self.vcpu
-			.write_register(
-				&x86Reg::GS,
-				SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
-			)?;
+		self.vcpu.write_register(
+			&x86Reg::CS,
+			SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring::Ring0).bits() as u64,
+		)?;
+		self.vcpu.write_register(
+			&x86Reg::DS,
+			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
+		)?;
+		self.vcpu.write_register(
+			&x86Reg::ES,
+			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
+		)?;
+		self.vcpu.write_register(
+			&x86Reg::SS,
+			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
+		)?;
+		self.vcpu.write_register(
+			&x86Reg::FS,
+			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
+		)?;
+		self.vcpu.write_register(
+			&x86Reg::GS,
+			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
+		)?;
 
 		Ok(())
 	}
@@ -151,19 +144,21 @@ impl EhyveCPU {
 			| Cr0::CR0_NUMERIC_ERROR;
 		let cr4 = Cr4::CR4_ENABLE_PAE | Cr4::CR4_ENABLE_VMX;
 
-		self.vcpu.write_vmcs(VMCS_GUEST_IA32_EFER, EFER_LME | EFER_LMA)?;
-
 		self.vcpu
-			.write_vmcs(
-				VMCS_CTRL_CR0_MASK,
-				(Cr0::CR0_CACHE_DISABLE | Cr0::CR0_NOT_WRITE_THROUGH | cr0).bits() as u64,
-			)?;
-		self.vcpu.write_vmcs(VMCS_CTRL_CR0_SHADOW, cr0.bits() as u64)?;
-		self.vcpu.write_vmcs(VMCS_CTRL_CR4_MASK, cr4.bits() as u64)?;
-		self.vcpu.write_vmcs(VMCS_CTRL_CR4_SHADOW, cr4.bits() as u64)?;
+			.write_vmcs(VMCS_GUEST_IA32_EFER, EFER_LME | EFER_LMA)?;
 
+		self.vcpu.write_vmcs(
+			VMCS_CTRL_CR0_MASK,
+			(Cr0::CR0_CACHE_DISABLE | Cr0::CR0_NOT_WRITE_THROUGH | cr0).bits() as u64,
+		)?;
 		self.vcpu
-			.write_register(&x86Reg::CR0, cr0.bits() as u64)?;
+			.write_vmcs(VMCS_CTRL_CR0_SHADOW, cr0.bits() as u64)?;
+		self.vcpu
+			.write_vmcs(VMCS_CTRL_CR4_MASK, cr4.bits() as u64)?;
+		self.vcpu
+			.write_vmcs(VMCS_CTRL_CR4_SHADOW, cr4.bits() as u64)?;
+
+		self.vcpu.write_register(&x86Reg::CR0, cr0.bits() as u64)?;
 		self.vcpu.write_register(&x86Reg::CR4, cr4.bits() as u64)?;
 		self.vcpu.write_register(&x86Reg::CR3, BOOT_PML4)?;
 		self.vcpu.write_register(&x86Reg::DR7, 0)?;
@@ -197,14 +192,12 @@ impl EhyveCPU {
 	fn setup_capabilities(&mut self) -> Result<()> {
 		debug!("Setup VMX capabilities");
 
-		self.vcpu
-			.write_vmcs(VMCS_CTRL_PIN_BASED, *CAP_PINBASED)?;
+		self.vcpu.write_vmcs(VMCS_CTRL_PIN_BASED, *CAP_PINBASED)?;
 		debug!(
 			"Pin-Based VM-Execution Controls 0x{:x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_PIN_BASED)?
 		);
-		self.vcpu
-			.write_vmcs(VMCS_CTRL_CPU_BASED, *CAP_PROCBASED)?;
+		self.vcpu.write_vmcs(VMCS_CTRL_CPU_BASED, *CAP_PROCBASED)?;
 		debug!(
 			"Primary Processor-Based VM-Execution Controls 0x{:x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_CPU_BASED)?
@@ -221,8 +214,7 @@ impl EhyveCPU {
 			"VM-Entry Controls 0x{:x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_VMENTRY_CONTROLS)?
 		);
-		self.vcpu
-			.write_vmcs(VMCS_CTRL_VMEXIT_CONTROLS, *CAP_EXIT)?;
+		self.vcpu.write_vmcs(VMCS_CTRL_VMEXIT_CONTROLS, *CAP_EXIT)?;
 		debug!(
 			"VM-Exit Controls 0x{:x}",
 			self.vcpu.read_vmcs(VMCS_CTRL_VMEXIT_CONTROLS)?
