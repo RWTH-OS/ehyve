@@ -1,4 +1,4 @@
-name: Rust
+name: Build
 
 on:
   push:
@@ -45,8 +45,6 @@ jobs:
          submodules: true
     - name: Check Cargo availability
       run: cargo --version
-    - name: Check Formatting
-      run: cargo fmt -- --check
     - name: Build
       run:
          cargo build
