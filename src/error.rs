@@ -1,3 +1,4 @@
+use std::convert::From;
 use std::{fmt, result};
 #[cfg(target_os = "macos")]
 use xhypervisor;
