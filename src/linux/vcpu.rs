@@ -204,7 +204,7 @@ impl VirtualCPU for EhyveCPU {
 		Ok(())
 	}
 
-	fn run(&mut self) -> Result<()> {
+	fn run(&mut self) -> Result<u8> {
 		//self.print_registers();
 
 		loop {
@@ -221,7 +221,9 @@ impl VirtualCPU for EhyveCPU {
 				}
 				VcpuExit::IoOut(port, addr) => match port {
 					SHUTDOWN_PORT => {
-						return Ok(());
+						// Return the first byte written to the port as
+						// return value
+						return Ok(addr[0]);
 					}
 					_ => {
 						self.io_exit(port, std::str::from_utf8(addr).unwrap().to_string())?;
@@ -236,7 +238,7 @@ impl VirtualCPU for EhyveCPU {
 			}
 		}
 
-		Ok(())
+		Ok(0)
 	}
 
 	fn print_registers(&self) {

@@ -126,7 +126,7 @@ impl VirtualCPU for EhyveCPU {
 		Ok(())
 	}
 
-	fn run(&mut self) -> Result<()> {
+	fn run(&mut self) -> Result<u8> {
 		debug!("Run vCPU {}", self.id);
 		loop {
 			let exit_context = self.vcpu.run().unwrap();
@@ -137,7 +137,9 @@ impl VirtualCPU for EhyveCPU {
 					let io_port_access_ctx = unsafe { &exit_context.anon_union.IoPortAccess };
 
 					if io_port_access_ctx.PortNumber == SHUTDOWN_PORT {
-						return Ok(());
+						panic!("io_port_access_ctx: {:?}", io_port_access_ctx);
+						// TODO: get return value
+						return Ok(42);
 					}
 
 					let _status = e
@@ -313,7 +315,7 @@ impl EmulatorCallbacks for EhyveCPU {
 		_context: *mut VOID,
 		io_access: &mut WHV_EMULATOR_IO_ACCESS_INFO,
 	) -> HRESULT {
-		if io_access.Port == 0x3f8 {
+		if io_access.Port == COM_PORT {
 			let cstr = unsafe {
 				std::str::from_utf8(std::slice::from_raw_parts(
 					&io_access.Data as *const _ as *const u8,
