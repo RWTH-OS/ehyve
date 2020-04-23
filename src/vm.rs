@@ -54,7 +54,7 @@ impl VmParameter {
 
 pub trait VirtualCPU {
 	fn init(&mut self, entry_point: u64) -> Result<()>;
-	fn run(&mut self) -> Result<()>;
+	fn run(&mut self) -> Result<u8>;
 	fn print_registers(&self);
 
 	fn io_exit(&self, port: u16, message: String) -> Result<()> {

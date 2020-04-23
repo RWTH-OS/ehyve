@@ -120,9 +120,14 @@ fn main() {
 
 				let result = cpu.run();
 				match result {
-					Ok(()) => {}
+					Ok(ret_code) => {
+						if ret_code != 0 {
+							std::process::exit(ret_code as i32);
+						}
+					}
 					Err(x) => {
 						error!("CPU {} crashes! {}", tid, x);
+						std::process::exit(255);
 					}
 				}
 			})

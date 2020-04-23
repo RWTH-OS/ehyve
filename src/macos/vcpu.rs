@@ -328,7 +328,7 @@ impl VirtualCPU for EhyveCPU {
 		Ok(())
 	}
 
-	fn run(&mut self) -> Result<()> {
+	fn run(&mut self) -> Result<u8> {
 		//self.print_registers();
 
 		debug!("Run vCPU {}", self.id);
@@ -404,7 +404,10 @@ impl VirtualCPU for EhyveCPU {
 
 					match port {
 						SHUTDOWN_PORT => {
-							return Ok(());
+							// Read the return value from the shutdown
+							// port
+							let ret_val = (self.vcpu.read_register(&x86Reg::RAX)? & 0xFF) as u8;
+							return Ok(ret_val);
 						}
 						COM_PORT => {
 							let al = (self.vcpu.read_register(&x86Reg::RAX)? & 0xFF) as u8;
@@ -427,6 +430,7 @@ impl VirtualCPU for EhyveCPU {
 				}
 			}
 		}
+		Ok(0)
 	}
 
 	fn print_registers(&self) {
