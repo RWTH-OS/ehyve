@@ -45,11 +45,16 @@ fn handle_cpuid_exit(vp: &mut VirtualProcessor, exit_context: &WHV_RUN_VP_EXIT_C
 pub struct EhyveCPU {
 	id: u32,
 	vcpu: VirtualProcessor,
+	ret_val: u8,
 }
 
 impl EhyveCPU {
 	pub fn new(id: u32, vcpu: VirtualProcessor) -> EhyveCPU {
-		EhyveCPU { id: id, vcpu: vcpu }
+		EhyveCPU {
+			id: id,
+			vcpu: vcpu,
+			ret_val: 0,
+		}
 	}
 }
 
@@ -133,22 +138,23 @@ impl VirtualCPU for EhyveCPU {
 
 			match exit_context.ExitReason {
 				WHV_RUN_VP_EXIT_REASON::WHvRunVpExitReasonX64IoPortAccess => {
-					let mut e = Emulator::new(self).unwrap();
-					let io_port_access_ctx = unsafe { &exit_context.anon_union.IoPortAccess };
+					let io_port_nr = {
+						let mut e = Emulator::new(self).unwrap();
+						let io_port_access_ctx = unsafe { &exit_context.anon_union.IoPortAccess };
 
-					if io_port_access_ctx.PortNumber == SHUTDOWN_PORT {
-						panic!("io_port_access_ctx: {:?}", io_port_access_ctx);
-						// TODO: get return value
-						return Ok(42);
+						let _status = e
+							.try_io_emulation(
+								std::ptr::null_mut(),
+								&exit_context.VpContext,
+								io_port_access_ctx,
+							)
+							.unwrap();
+						io_port_access_ctx.PortNumber
+					};
+
+					if io_port_nr == SHUTDOWN_PORT {
+						return Ok(self.ret_val);
 					}
-
-					let _status = e
-						.try_io_emulation(
-							std::ptr::null_mut(),
-							&exit_context.VpContext,
-							io_port_access_ctx,
-						)
-						.unwrap();
 				}
 				WHV_RUN_VP_EXIT_REASON::WHvRunVpExitReasonX64Cpuid => {
 					handle_cpuid_exit(&mut self.vcpu.borrow_mut(), &exit_context)
@@ -315,18 +321,31 @@ impl EmulatorCallbacks for EhyveCPU {
 		_context: *mut VOID,
 		io_access: &mut WHV_EMULATOR_IO_ACCESS_INFO,
 	) -> HRESULT {
-		if io_access.Port == COM_PORT {
-			let cstr = unsafe {
-				std::str::from_utf8(std::slice::from_raw_parts(
-					&io_access.Data as *const _ as *const u8,
-					io_access.AccessSize as usize,
-				))
-				.unwrap()
-			};
+		match io_access.Port {
+			COM_PORT => {
+				let cstr = unsafe {
+					std::str::from_utf8(std::slice::from_raw_parts(
+						&io_access.Data as *const _ as *const u8,
+						io_access.AccessSize as usize,
+					))
+					.unwrap()
+				};
 
-			self.io_exit(io_access.Port, cstr.to_string()).unwrap();
-		} else {
-			debug!("Ignore IO port 0x{:x}", io_access.Port);
+				self.io_exit(io_access.Port, cstr.to_string()).unwrap();
+			}
+			SHUTDOWN_PORT => {
+				let sl = unsafe {
+					std::slice::from_raw_parts(
+						&io_access.Data as *const _ as *const u8,
+						io_access.AccessSize as usize,
+					)
+				};
+				dbg! {sl};
+				self.ret_val = sl[0];
+			}
+			_ => {
+				debug!("Ignore IO port 0x{:x}", io_access.Port);
+			}
 		}
 
 		S_OK
