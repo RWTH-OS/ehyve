@@ -95,7 +95,7 @@ fn main() {
 	let file = matches.value_of("FILE").map(str::to_string);
 	let mem_size: usize = matches
 		.value_of("MEM")
-		.map(|x| utils::parse_mem(&x).unwrap_or(DEFAULT_GUEST_SIZE))
+		.map(|x| utils::parse_mem(&x).expect("couldn't parse --memsize"))
 		.unwrap_or(DEFAULT_GUEST_SIZE);
 	let num_cpus: u32 = matches
 		.value_of("CPUS")
