@@ -6,6 +6,18 @@
 
 ehyve is small hypervisor to boot the operating systems [eduOS-rs](https://github.com/RWTH-OS/eduOS-rs), which is a Unix-like operating system based on a monolithic architecture for educational purposes. ehyve is tested under Linux, macOS, and Windows.
 
+## Installation
+
+ehyve can easily be installed via [cargo](https://doc.rust-lang.org/cargo/), which is shipped with Rust by default.
+The **nightly** compiler must be activated for ehyve.
+
+```sh
+$ rustup default nightly
+$ cargo install --git https://github.com/RWTH-OS/ehyve.git
+$ ehyve --version
+eHyve 0.0.10
+```
+
 ## Requirements
 
 ehyve requires a CPU with Virtualization features (Intel Hyper-V or AMD-V). **Ensure that these are enabled in the BIOS/EFI!**
@@ -63,15 +75,22 @@ Afterwards the installation of the Rust runtimes source code is required to buil
 $ rustup component add rust-src
 ```
 
-## Building
-The final step is to create a copy of the repository and to build the kernel:
+## Building from source
+ehyve can be build from source with `cargo`. You only need a copy of the repository with the submodules:
 
 ```sh
-git clone git@github.com:RWTH-OS/ehyve.git
-cd ehyve
-git submodule update --init
-cargo ehyve-run
+$ git clone git@github.com:RWTH-OS/ehyve.git
+$ cd ehyve
+$ git submodule update --init
+$ cargo build --release
 ```
+The ehyve binary can then be found at `target/release/ehyve`:
+
+```sh> 
+$ target/release/ehyve --version
+eHyve 0.0.10
+```
+
 
 ## Licensing
 Licensed under either of
