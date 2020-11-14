@@ -139,15 +139,11 @@ impl VirtualCPU for EhyveCPU {
 			match exit_context.ExitReason {
 				WHV_RUN_VP_EXIT_REASON::WHvRunVpExitReasonX64IoPortAccess => {
 					let io_port_nr = {
-						let mut e = Emulator::new(self).unwrap();
+						let e = Emulator::<Self>::new().unwrap();
 						let io_port_access_ctx = unsafe { &exit_context.anon_union.IoPortAccess };
 
 						let _status = e
-							.try_io_emulation(
-								std::ptr::null_mut(),
-								&exit_context.VpContext,
-								io_port_access_ctx,
-							)
+							.try_io_emulation(self, &exit_context.VpContext, io_port_access_ctx)
 							.unwrap();
 						io_port_access_ctx.PortNumber
 					};
@@ -316,11 +312,7 @@ impl Drop for EhyveCPU {
 }
 
 impl EmulatorCallbacks for EhyveCPU {
-	fn io_port(
-		&mut self,
-		_context: *mut VOID,
-		io_access: &mut WHV_EMULATOR_IO_ACCESS_INFO,
-	) -> HRESULT {
+	fn io_port(&mut self, io_access: &mut WHV_EMULATOR_IO_ACCESS_INFO) -> HRESULT {
 		match io_access.Port {
 			COM_PORT => {
 				let cstr = unsafe {
@@ -351,11 +343,7 @@ impl EmulatorCallbacks for EhyveCPU {
 		S_OK
 	}
 
-	fn memory(
-		&mut self,
-		_context: *mut VOID,
-		_memory_access: &mut WHV_EMULATOR_MEMORY_ACCESS_INFO,
-	) -> HRESULT {
+	fn memory(&mut self, _memory_access: &mut WHV_EMULATOR_MEMORY_ACCESS_INFO) -> HRESULT {
 		/*match memory_access.AccessSize {
 			8 => match memory_access.Direction {
 				0 => {
@@ -379,7 +367,6 @@ impl EmulatorCallbacks for EhyveCPU {
 
 	fn get_virtual_processor_registers(
 		&mut self,
-		_context: *mut VOID,
 		register_names: &[WHV_REGISTER_NAME],
 		register_values: &mut [WHV_REGISTER_VALUE],
 	) -> HRESULT {
@@ -392,7 +379,6 @@ impl EmulatorCallbacks for EhyveCPU {
 
 	fn set_virtual_processor_registers(
 		&mut self,
-		_context: *mut VOID,
 		register_names: &[WHV_REGISTER_NAME],
 		register_values: &[WHV_REGISTER_VALUE],
 	) -> HRESULT {
@@ -405,11 +391,10 @@ impl EmulatorCallbacks for EhyveCPU {
 
 	fn translate_gva_page(
 		&mut self,
-		_context: *mut VOID,
-		gva: WHV_GUEST_VIRTUAL_ADDRESS,
-		translate_flags: WHV_TRANSLATE_GVA_FLAGS,
-		translation_result: &mut WHV_TRANSLATE_GVA_RESULT_CODE,
-		gpa: &mut WHV_GUEST_PHYSICAL_ADDRESS,
+		_gva: WHV_GUEST_VIRTUAL_ADDRESS,
+		_translate_flags: WHV_TRANSLATE_GVA_FLAGS,
+		_translation_result: &mut WHV_TRANSLATE_GVA_RESULT_CODE,
+		_gpa: &mut WHV_GUEST_PHYSICAL_ADDRESS,
 	) -> HRESULT {
 		/*let (translation_result1, gpa1) = self.vp_ref_cell
 			.borrow()
