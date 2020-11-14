@@ -1,3 +1,0 @@
-[submodule "crates/libwhp"]
-	path = crates/libwhp
-	url = https://github.com/RWTH-OS/libwhp.git
