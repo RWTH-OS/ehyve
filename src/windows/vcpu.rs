@@ -391,10 +391,10 @@ impl EmulatorCallbacks for EhyveCPU {
 
 	fn translate_gva_page(
 		&mut self,
-		gva: WHV_GUEST_VIRTUAL_ADDRESS,
-		translate_flags: WHV_TRANSLATE_GVA_FLAGS,
-		translation_result: &mut WHV_TRANSLATE_GVA_RESULT_CODE,
-		gpa: &mut WHV_GUEST_PHYSICAL_ADDRESS,
+		_gva: WHV_GUEST_VIRTUAL_ADDRESS,
+		_translate_flags: WHV_TRANSLATE_GVA_FLAGS,
+		_translation_result: &mut WHV_TRANSLATE_GVA_RESULT_CODE,
+		_gpa: &mut WHV_GUEST_PHYSICAL_ADDRESS,
 	) -> HRESULT {
 		/*let (translation_result1, gpa1) = self.vp_ref_cell
 			.borrow()
