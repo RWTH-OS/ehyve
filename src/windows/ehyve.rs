@@ -158,6 +158,27 @@ impl Ehyve {
 			.set_property_cpuid_results(&cpuid_results)
 			.unwrap();
 
+		// check if Local Apic Emulation supported
+		let has_local_apic_emulation = {
+			let capability =
+				get_capability(WHV_CAPABILITY_CODE::WHvCapabilityCodeFeatures).unwrap();
+			let features = unsafe { capability.Features };
+			features.LocalApicEmulation() != 0
+		};
+
+		// enable Local Apic Emulation
+		if has_local_apic_emulation { 
+			let mut property: WHV_PARTITION_PROPERTY = unsafe { std::mem::zeroed() };
+			property.LocalApicEmulationMode =
+				platform::WHV_X64_LOCAL_APIC_EMULATION_MODE::WHvX64LocalApicEmulationModeXApic;
+	
+			partition.set_property(
+				WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeLocalApicEmulationMode,
+				&property,
+			)
+			.unwrap();
+		};
+
 		partition.setup().unwrap();
 	}
 }
