@@ -226,7 +226,9 @@ impl VirtualCPU for EhyveCPU {
 						return Ok(addr[0]);
 					}
 					_ => {
-						self.io_exit(port, std::str::from_utf8(addr).unwrap().to_string())?;
+						self.io_exit(port, std::str::from_utf8(addr)
+						.or_else(|_| -> std::result::Result<&str, std::str::Utf8Error> { error!("received invalid UTF8-Char on COM1"); Ok(&"")})
+						.unwrap().to_string())?;
 					}
 				},
 				_ => {
