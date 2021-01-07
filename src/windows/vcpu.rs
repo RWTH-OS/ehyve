@@ -320,7 +320,10 @@ impl EmulatorCallbacks for EhyveCPU {
 						&io_access.Data as *const _ as *const u8,
 						io_access.AccessSize as usize,
 					))
-					.or_else(|_| -> std::result::Result<&str, std::str::Utf8Error> { error!("received invalid UTF8-Char on COM1"); Ok(&"")})
+					.or_else(|_| -> std::result::Result<&str, std::str::Utf8Error> {
+						error!("received invalid UTF8-Char on COM1");
+						Ok(&"")
+					})
 					.unwrap()
 				};
 
