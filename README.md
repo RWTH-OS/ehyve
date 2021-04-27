@@ -9,11 +9,10 @@ ehyve is small hypervisor to boot the operating systems [eduOS-rs](https://githu
 ## Installation
 
 ehyve can easily be installed via [cargo](https://doc.rust-lang.org/cargo/), which is shipped with Rust by default.
-The **nightly** compiler must be activated for ehyve.
+The **nightly** compiler must be activated for building ehyve.
 
 ```sh
-$ rustup default nightly
-$ cargo install --git https://github.com/RWTH-OS/ehyve.git
+$ cargo +nightly install --git https://github.com/RWTH-OS/ehyve.git --locked
 $ ehyve --version
 eHyve 0.0.10
 ```
