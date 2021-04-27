@@ -5,26 +5,23 @@ authors = ["Stefan Lankes <slankes@eonerc.rwth-aachen>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-log = "0.4"
-env_logger = "0.7.*"
 aligned_alloc = "0.1"
+clap = "2.33"
 elf = "0.0.10"
-libc = "0.2.66"
-memmap = "0.7"
+env_logger = "0.8"
 lazy_static = "1.4"
-clap = "2"
-x86 = "0.34.0"
-#default-features = false
+libc = "0.2"
+log = "0.4"
+memmap = "0.7"
+x86 = "0.38"
 
-[target.'cfg(target_os = "macos")'.dependencies.xhypervisor]
-version = "0.0.*"
+[target.'cfg(target_os = "macos")'.dependencies]
+xhypervisor = "0.0.12"
 
 [target.'cfg(target_os = "windows")'.dependencies.libwhp]
 git = "https://github.com/insula-rs/libwhp.git"
 rev = "3ee2119fa8a889cccbc223b0858bd1cdb1635975"
 
-[target.'cfg(target_os = "linux")'.dependencies.kvm-ioctls]
-version = "0.3.*"
-
-[target.'cfg(target_os = "linux")'.dependencies.kvm-bindings]
-version = "0.*"
+[target.'cfg(target_os = "linux")'.dependencies]
+kvm-bindings = "0.2"
+kvm-ioctls = "0.3"
