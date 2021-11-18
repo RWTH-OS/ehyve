@@ -1,7 +1,7 @@
 use consts::*;
 use error::*;
 use kvm_bindings::*;
-use kvm_ioctls::{VcpuExit, VcpuFd, MAX_KVM_CPUID_ENTRIES};
+use kvm_ioctls::{VcpuExit, VcpuFd};
 use linux::KVM;
 use std;
 use vm::VirtualCPU;
@@ -24,7 +24,7 @@ impl EhyveCPU {
 
 	fn setup_cpuid(&self) -> Result<()> {
 		let mut kvm_cpuid = KVM
-			.get_supported_cpuid(MAX_KVM_CPUID_ENTRIES)
+			.get_supported_cpuid(KVM_MAX_CPUID_ENTRIES)
 			.or_else(to_error)?;
 		let kvm_cpuid_entries = kvm_cpuid.as_mut_slice();
 		let i = kvm_cpuid_entries
@@ -93,6 +93,7 @@ impl EhyveCPU {
 		let msr_list = KVM.get_msr_index_list().or_else(to_error)?;
 
 		let mut msr_entries = msr_list
+			.as_slice()
 			.iter()
 			.map(|i| kvm_msr_entry {
 				index: *i,
@@ -105,10 +106,10 @@ impl EhyveCPU {
 		msr_entries[0].index = MSR_IA32_MISC_ENABLE;
 		msr_entries[0].data = 1;
 
-		let mut msrs: &mut kvm_msrs = unsafe { &mut *(msr_entries.as_ptr() as *mut kvm_msrs) };
-		msrs.nmsrs = 1;
+		let msrs = Msrs::from_entries(&msr_entries)
+			.expect("Unable to create initial values for the machine specific registers");
 
-		self.vcpu.set_msrs(msrs).or_else(to_error)?;
+		self.vcpu.set_msrs(&msrs).or_else(to_error)?;
 
 		Ok(())
 	}

@@ -23,5 +23,5 @@ git = "https://github.com/insula-rs/libwhp.git"
 rev = "3ee2119fa8a889cccbc223b0858bd1cdb1635975"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-kvm-bindings = "0.2"
-kvm-ioctls = "0.3"
+kvm-bindings = "0.5"
+kvm-ioctls = "0.10"
