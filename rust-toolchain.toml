@@ -1,0 +1,7 @@
+[toolchain]
+channel = "nightly-2022-01-31"
+components = [
+    "clippy",
+    "rustfmt",
+    "rust-src",
+]
