@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "ehyve"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "aligned_alloc",
  "clap",
@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "kvm-ioctls"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48dc14f9047df1873cf6942caccc7431d19c3d496ca7a0d162260c4cf0f64b76"
+checksum = "97422ba48d7ffb66fd4d18130f72ab66f9bbbf791fb7a87b9291cdcfec437593"
 dependencies = [
  "kvm-bindings",
  "libc",
@@ -222,9 +222,9 @@ dependencies = [
 
 [[package]]
 name = "raw-cpuid"
-version = "9.1.1"
+version = "10.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1733f6f80c9c24268736a501cd00d41a9849b4faa7a9f9334c096e5d10553206"
+checksum = "929f54e29691d4e6a9cc558479de70db7aa3d98cd6fe7ab86d7507aa2886b9d2"
 dependencies = [
  "bitflags",
 ]
@@ -337,9 +337,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "x86"
-version = "0.38.0"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40b8fef4ec6adeeea41fa8b85a91e88646fa4c5bb62555b5180d5d0d1b03b482"
+checksum = "6297379090b1be212a2d59dd57708c99b42b4bcbeee2ce6fb80babbe7b63e89a"
 dependencies = [
  "bit_field",
  "bitflags",

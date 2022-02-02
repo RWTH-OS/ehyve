@@ -15,7 +15,7 @@ use xhypervisor::consts::vmx_cap::{
 	VMENTRY_GUEST_IA32E, VMENTRY_LOAD_EFER,
 };
 use xhypervisor::consts::vmx_exit;
-use xhypervisor::{read_vmx_cap, vCPU, x86Reg};
+use xhypervisor::{read_vmx_cap, vCPU, Register};
 
 /* desired control word constrained by hardware/hypervisor capabilities */
 fn cap2ctrl(cap: u64, ctrl: u64) -> u64 {
@@ -108,27 +108,27 @@ impl EhyveCPU {
 		self.vcpu.write_vmcs(VMCS_GUEST_LDTR_BASE, 0)?;
 		// Reload the segment descriptors
 		self.vcpu.write_register(
-			&x86Reg::CS,
+			&Register::CS,
 			SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring::Ring0).bits() as u64,
 		)?;
 		self.vcpu.write_register(
-			&x86Reg::DS,
+			&Register::DS,
 			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 		)?;
 		self.vcpu.write_register(
-			&x86Reg::ES,
+			&Register::ES,
 			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 		)?;
 		self.vcpu.write_register(
-			&x86Reg::SS,
+			&Register::SS,
 			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 		)?;
 		self.vcpu.write_register(
-			&x86Reg::FS,
+			&Register::FS,
 			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 		)?;
 		self.vcpu.write_register(
-			&x86Reg::GS,
+			&Register::GS,
 			SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring::Ring0).bits() as u64,
 		)?;
 
@@ -158,10 +158,12 @@ impl EhyveCPU {
 		self.vcpu
 			.write_vmcs(VMCS_CTRL_CR4_SHADOW, cr4.bits() as u64)?;
 
-		self.vcpu.write_register(&x86Reg::CR0, cr0.bits() as u64)?;
-		self.vcpu.write_register(&x86Reg::CR4, cr4.bits() as u64)?;
-		self.vcpu.write_register(&x86Reg::CR3, BOOT_PML4)?;
-		self.vcpu.write_register(&x86Reg::DR7, 0)?;
+		self.vcpu
+			.write_register(&Register::CR0, cr0.bits() as u64)?;
+		self.vcpu
+			.write_register(&Register::CR4, cr4.bits() as u64)?;
+		self.vcpu.write_register(&Register::CR3, BOOT_PML4)?;
+		self.vcpu.write_register(&Register::DR7, 0)?;
 		self.vcpu.write_vmcs(VMCS_GUEST_SYSENTER_ESP, 0)?;
 		self.vcpu.write_vmcs(VMCS_GUEST_SYSENTER_EIP, 0)?;
 
@@ -225,8 +227,8 @@ impl EhyveCPU {
 
 	fn emulate_cpuid(&mut self, rip: u64) -> Result<()> {
 		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN)?;
-		let rax = self.vcpu.read_register(&x86Reg::RAX)?;
-		let rcx = self.vcpu.read_register(&x86Reg::RCX)?;
+		let rax = self.vcpu.read_register(&Register::RAX)?;
+		let rcx = self.vcpu.read_register(&Register::RCX)?;
 		let result = native_cpuid::cpuid_count(rax as u32, rcx as u32);
 
 		let rax = result.eax as u64;
@@ -234,19 +236,19 @@ impl EhyveCPU {
 		let rcx = result.ecx as u64;
 		let rdx = result.edx as u64;
 
-		self.vcpu.write_register(&x86Reg::RAX, rax)?;
-		self.vcpu.write_register(&x86Reg::RBX, rbx)?;
-		self.vcpu.write_register(&x86Reg::RCX, rcx)?;
-		self.vcpu.write_register(&x86Reg::RDX, rdx)?;
+		self.vcpu.write_register(&Register::RAX, rax)?;
+		self.vcpu.write_register(&Register::RBX, rbx)?;
+		self.vcpu.write_register(&Register::RCX, rcx)?;
+		self.vcpu.write_register(&Register::RDX, rdx)?;
 
-		self.vcpu.write_register(&x86Reg::RIP, rip + len)?;
+		self.vcpu.write_register(&Register::RIP, rip + len)?;
 
 		Ok(())
 	}
 
 	fn emulate_rdmsr(&mut self, rip: u64) -> Result<()> {
 		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN)?;
-		let rcx = self.vcpu.read_register(&x86Reg::RCX)? & 0xFFFFFFFF;
+		let rcx = self.vcpu.read_register(&Register::RCX)? & 0xFFFFFFFF;
 
 		match rcx as u32 {
 			IA32_EFER => {
@@ -254,8 +256,8 @@ impl EhyveCPU {
 				let rax = efer & 0xFFFFFFFF;
 				let rdx = efer >> 32;
 
-				self.vcpu.write_register(&x86Reg::RAX, rax)?;
-				self.vcpu.write_register(&x86Reg::RDX, rdx)?;
+				self.vcpu.write_register(&Register::RAX, rax)?;
+				self.vcpu.write_register(&Register::RDX, rdx)?;
 			}
 			_ => {
 				error!("Unable to read msr 0x{:x}!", rcx);
@@ -263,19 +265,19 @@ impl EhyveCPU {
 			}
 		}
 
-		self.vcpu.write_register(&x86Reg::RIP, rip + len)?;
+		self.vcpu.write_register(&Register::RIP, rip + len)?;
 
 		Ok(())
 	}
 
 	fn emulate_wrmsr(&mut self, rip: u64) -> Result<()> {
 		let len = self.vcpu.read_vmcs(VMCS_RO_VMEXIT_INSTR_LEN)?;
-		let rcx = self.vcpu.read_register(&x86Reg::RCX)? & 0xFFFFFFFF;
+		let rcx = self.vcpu.read_register(&Register::RCX)? & 0xFFFFFFFF;
 
 		match rcx as u32 {
 			IA32_EFER => {
-				let rax = self.vcpu.read_register(&x86Reg::RAX)? & 0xFFFFFFFF;
-				let rdx = self.vcpu.read_register(&x86Reg::RDX)? & 0xFFFFFFFF;
+				let rax = self.vcpu.read_register(&Register::RAX)? & 0xFFFFFFFF;
+				let rdx = self.vcpu.read_register(&Register::RDX)? & 0xFFFFFFFF;
 				let efer = (rdx << 32) | rax;
 
 				self.vcpu.write_vmcs(VMCS_GUEST_IA32_EFER, efer)?;
@@ -286,7 +288,7 @@ impl EhyveCPU {
 			}
 		}
 
-		self.vcpu.write_register(&x86Reg::RIP, rip + len)?;
+		self.vcpu.write_register(&Register::RIP, rip + len)?;
 
 		Ok(())
 	}
@@ -303,25 +305,26 @@ impl VirtualCPU for EhyveCPU {
 		self.vcpu.write_vmcs(VMCS_GUEST_SYSENTER_ESP, 0)?;
 
 		debug!("Setup general purpose registers");
-		self.vcpu.write_register(&x86Reg::RIP, entry_point)?;
-		self.vcpu.write_register(&x86Reg::RFLAGS, 0x2)?;
+		self.vcpu.write_register(&Register::RIP, entry_point)?;
+		self.vcpu.write_register(&Register::RFLAGS, 0x2)?;
 		// create temporary stack to boot the kernel
-		self.vcpu.write_register(&x86Reg::RSP, 0x200000 - 0x1000)?;
-		self.vcpu.write_register(&x86Reg::RBP, 0)?;
-		self.vcpu.write_register(&x86Reg::RAX, 0)?;
-		self.vcpu.write_register(&x86Reg::RBX, 0)?;
-		self.vcpu.write_register(&x86Reg::RCX, 0)?;
-		self.vcpu.write_register(&x86Reg::RDX, 0)?;
-		self.vcpu.write_register(&x86Reg::RSI, 0)?;
-		self.vcpu.write_register(&x86Reg::RDI, 0)?;
-		self.vcpu.write_register(&x86Reg::R8, 0)?;
-		self.vcpu.write_register(&x86Reg::R9, 0)?;
-		self.vcpu.write_register(&x86Reg::R10, 0)?;
-		self.vcpu.write_register(&x86Reg::R11, 0)?;
-		self.vcpu.write_register(&x86Reg::R12, 0)?;
-		self.vcpu.write_register(&x86Reg::R13, 0)?;
-		self.vcpu.write_register(&x86Reg::R14, 0)?;
-		self.vcpu.write_register(&x86Reg::R15, 0)?;
+		self.vcpu
+			.write_register(&Register::RSP, 0x200000 - 0x1000)?;
+		self.vcpu.write_register(&Register::RBP, 0)?;
+		self.vcpu.write_register(&Register::RAX, 0)?;
+		self.vcpu.write_register(&Register::RBX, 0)?;
+		self.vcpu.write_register(&Register::RCX, 0)?;
+		self.vcpu.write_register(&Register::RDX, 0)?;
+		self.vcpu.write_register(&Register::RSI, 0)?;
+		self.vcpu.write_register(&Register::RDI, 0)?;
+		self.vcpu.write_register(&Register::R8, 0)?;
+		self.vcpu.write_register(&Register::R9, 0)?;
+		self.vcpu.write_register(&Register::R10, 0)?;
+		self.vcpu.write_register(&Register::R11, 0)?;
+		self.vcpu.write_register(&Register::R12, 0)?;
+		self.vcpu.write_register(&Register::R13, 0)?;
+		self.vcpu.write_register(&Register::R14, 0)?;
+		self.vcpu.write_register(&Register::R15, 0)?;
 		self.setup_system_gdt()?;
 		self.setup_system_64bit()?;
 
@@ -335,7 +338,7 @@ impl VirtualCPU for EhyveCPU {
 		loop {
 			if self.extint_pending == true {
 				let irq_info = self.vcpu.read_vmcs(VMCS_CTRL_VMENTRY_IRQ_INFO)?;
-				let flags = self.vcpu.read_register(&x86Reg::RFLAGS)?;
+				let flags = self.vcpu.read_register(&Register::RFLAGS)?;
 				let ignore_irq = self.vcpu.read_vmcs(VMCS_GUEST_IGNORE_IRQ)?;
 
 				if ignore_irq & 1 != 1
@@ -353,7 +356,7 @@ impl VirtualCPU for EhyveCPU {
 			self.vcpu.run()?;
 
 			let reason = self.vcpu.read_vmcs(VMCS_RO_EXIT_REASON)? & 0xffff;
-			let rip = self.vcpu.read_register(&x86Reg::RIP)?;
+			let rip = self.vcpu.read_register(&Register::RIP)?;
 
 			match reason {
 				vmx_exit::VMX_REASON_EXC_NMI => {
@@ -406,20 +409,20 @@ impl VirtualCPU for EhyveCPU {
 						SHUTDOWN_PORT => {
 							// Read the return value from the shutdown
 							// port
-							let ret_val = (self.vcpu.read_register(&x86Reg::RAX)? & 0xFF) as u8;
+							let ret_val = (self.vcpu.read_register(&Register::RAX)? & 0xFF) as u8;
 							return Ok(ret_val);
 						}
 						COM_PORT => {
-							let al = (self.vcpu.read_register(&x86Reg::RAX)? & 0xFF) as u8;
+							let al = (self.vcpu.read_register(&Register::RAX)? & 0xFF) as u8;
 							let mut msg = vec![];
 							msg.push(al);
 
 							self.io_exit(port, std::str::from_utf8(&msg).unwrap().to_string())?;
-							self.vcpu.write_register(&x86Reg::RIP, rip + len)?;
+							self.vcpu.write_register(&Register::RIP, rip + len)?;
 						}
 						_ => {
 							trace!("Receive unhandled output command at port 0x{:x}", port);
-							self.vcpu.write_register(&x86Reg::RIP, rip + len)?;
+							self.vcpu.write_register(&Register::RIP, rip + len)?;
 						}
 					}
 				}
@@ -462,24 +465,24 @@ impl VirtualCPU for EhyveCPU {
 		println!("\nRegisters:");
 		println!("----------");
 
-		let rip = self.vcpu.read_register(&x86Reg::RIP).unwrap();
-		let rflags = self.vcpu.read_register(&x86Reg::RFLAGS).unwrap();
-		let rsp = self.vcpu.read_register(&x86Reg::RSP).unwrap();
-		let rbp = self.vcpu.read_register(&x86Reg::RBP).unwrap();
-		let rax = self.vcpu.read_register(&x86Reg::RAX).unwrap();
-		let rbx = self.vcpu.read_register(&x86Reg::RBX).unwrap();
-		let rcx = self.vcpu.read_register(&x86Reg::RCX).unwrap();
-		let rdx = self.vcpu.read_register(&x86Reg::RDX).unwrap();
-		let rsi = self.vcpu.read_register(&x86Reg::RSI).unwrap();
-		let rdi = self.vcpu.read_register(&x86Reg::RDI).unwrap();
-		let r8 = self.vcpu.read_register(&x86Reg::R8).unwrap();
-		let r9 = self.vcpu.read_register(&x86Reg::R9).unwrap();
-		let r10 = self.vcpu.read_register(&x86Reg::R10).unwrap();
-		let r11 = self.vcpu.read_register(&x86Reg::R11).unwrap();
-		let r12 = self.vcpu.read_register(&x86Reg::R12).unwrap();
-		let r13 = self.vcpu.read_register(&x86Reg::R13).unwrap();
-		let r14 = self.vcpu.read_register(&x86Reg::R14).unwrap();
-		let r15 = self.vcpu.read_register(&x86Reg::R15).unwrap();
+		let rip = self.vcpu.read_register(&Register::RIP).unwrap();
+		let rflags = self.vcpu.read_register(&Register::RFLAGS).unwrap();
+		let rsp = self.vcpu.read_register(&Register::RSP).unwrap();
+		let rbp = self.vcpu.read_register(&Register::RBP).unwrap();
+		let rax = self.vcpu.read_register(&Register::RAX).unwrap();
+		let rbx = self.vcpu.read_register(&Register::RBX).unwrap();
+		let rcx = self.vcpu.read_register(&Register::RCX).unwrap();
+		let rdx = self.vcpu.read_register(&Register::RDX).unwrap();
+		let rsi = self.vcpu.read_register(&Register::RSI).unwrap();
+		let rdi = self.vcpu.read_register(&Register::RDI).unwrap();
+		let r8 = self.vcpu.read_register(&Register::R8).unwrap();
+		let r9 = self.vcpu.read_register(&Register::R9).unwrap();
+		let r10 = self.vcpu.read_register(&Register::R10).unwrap();
+		let r11 = self.vcpu.read_register(&Register::R11).unwrap();
+		let r12 = self.vcpu.read_register(&Register::R12).unwrap();
+		let r13 = self.vcpu.read_register(&Register::R13).unwrap();
+		let r14 = self.vcpu.read_register(&Register::R14).unwrap();
+		let r15 = self.vcpu.read_register(&Register::R15).unwrap();
 
 		print!(
 			"rip: {:016x}   rsp: {:016x} flags: {:016x}\n\
@@ -508,10 +511,10 @@ impl VirtualCPU for EhyveCPU {
 			r15
 		);
 
-		let cr0 = self.vcpu.read_register(&x86Reg::CR0).unwrap();
-		let cr2 = self.vcpu.read_register(&x86Reg::CR2).unwrap();
-		let cr3 = self.vcpu.read_register(&x86Reg::CR3).unwrap();
-		let cr4 = self.vcpu.read_register(&x86Reg::CR4).unwrap();
+		let cr0 = self.vcpu.read_register(&Register::CR0).unwrap();
+		let cr2 = self.vcpu.read_register(&Register::CR2).unwrap();
+		let cr3 = self.vcpu.read_register(&Register::CR3).unwrap();
+		let cr4 = self.vcpu.read_register(&Register::CR4).unwrap();
 		let efer = self.vcpu.read_vmcs(VMCS_GUEST_IA32_EFER).unwrap();
 
 		println!(
@@ -523,14 +526,14 @@ impl VirtualCPU for EhyveCPU {
 		println!("------------------");
 		println!("register  selector  base              limit     type  p dpl db s l g avl");
 
-		let cs = self.vcpu.read_register(&x86Reg::CS).unwrap();
-		let ds = self.vcpu.read_register(&x86Reg::DS).unwrap();
-		let es = self.vcpu.read_register(&x86Reg::ES).unwrap();
-		let ss = self.vcpu.read_register(&x86Reg::SS).unwrap();
-		let fs = self.vcpu.read_register(&x86Reg::FS).unwrap();
-		let gs = self.vcpu.read_register(&x86Reg::GS).unwrap();
-		let tr = self.vcpu.read_register(&x86Reg::TR).unwrap();
-		let ldtr = self.vcpu.read_register(&x86Reg::LDTR).unwrap();
+		let cs = self.vcpu.read_register(&Register::CS).unwrap();
+		let ds = self.vcpu.read_register(&Register::DS).unwrap();
+		let es = self.vcpu.read_register(&Register::ES).unwrap();
+		let ss = self.vcpu.read_register(&Register::SS).unwrap();
+		let fs = self.vcpu.read_register(&Register::FS).unwrap();
+		let gs = self.vcpu.read_register(&Register::GS).unwrap();
+		let tr = self.vcpu.read_register(&Register::TR).unwrap();
+		let ldtr = self.vcpu.read_register(&Register::LDTR).unwrap();
 
 		let cs_limit = self.vcpu.read_vmcs(VMCS_GUEST_CS_LIMIT).unwrap();
 		let cs_base = self.vcpu.read_vmcs(VMCS_GUEST_CS_BASE).unwrap();

@@ -1,6 +1,6 @@
 [package]
 name = "ehyve"
-version = "0.0.11"
+version = "0.0.12"
 authors = ["Stefan Lankes <slankes@eonerc.rwth-aachen>"]
 license = "MIT/Apache-2.0"
 
@@ -13,7 +13,7 @@ lazy_static = "1.4"
 libc = "0.2"
 log = "0.4"
 memmap = "0.7"
-x86 = "0.38"
+x86 = "0.46"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 xhypervisor = "0.0.12"
@@ -24,4 +24,4 @@ rev = "3ee2119fa8a889cccbc223b0858bd1cdb1635975"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 kvm-bindings = "0.5"
-kvm-ioctls = "0.10"
+kvm-ioctls = "0.11"
