@@ -50,7 +50,7 @@ impl Ehyve {
 			map_mem(
 				std::slice::from_raw_parts(mem as *mut u8, mem_size),
 				0,
-				&MemPerm::ExecAndWrite,
+				MemPerm::ExecAndWrite,
 			)?;
 		}
 
@@ -69,7 +69,7 @@ impl Ehyve {
 					map_mem(
 						std::slice::from_raw_parts(mmap.as_ptr(), mmap.len()),
 						mem_size as u64,
-						&MemPerm::Read,
+						MemPerm::Read,
 					)?;
 				}
 				Some(mmap)

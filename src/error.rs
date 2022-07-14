@@ -4,7 +4,7 @@ use xhypervisor;
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Error {
 	FileMissing,
 	InternalError,
