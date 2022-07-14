@@ -15,7 +15,7 @@ use xhypervisor::consts::vmx_cap::{
 	VMENTRY_GUEST_IA32E, VMENTRY_LOAD_EFER,
 };
 use xhypervisor::consts::vmx_exit;
-use xhypervisor::{read_vmx_cap, VirtualCpu, Register};
+use xhypervisor::{read_vmx_cap, Register, VirtualCpu};
 
 /* desired control word constrained by hardware/hypervisor capabilities */
 fn cap2ctrl(cap: u64, ctrl: u64) -> u64 {
