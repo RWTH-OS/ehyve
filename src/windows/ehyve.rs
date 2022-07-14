@@ -224,8 +224,6 @@ impl Drop for Ehyve {
 		debug!("Drop virtual machine");
 
 		//unmap_mem(0, self.mem_size).unwrap();
-
-		//unsafe { aligned_free(self.guest_mem); }
 	}
 }
 

@@ -2,7 +2,6 @@
 #![feature(core_intrinsics)]
 #![allow(dead_code)]
 
-extern crate aligned_alloc;
 extern crate elf;
 extern crate libc;
 extern crate memmap;
