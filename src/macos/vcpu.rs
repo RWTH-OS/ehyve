@@ -15,7 +15,7 @@ use xhypervisor::consts::vmx_cap::{
 	VMENTRY_GUEST_IA32E, VMENTRY_LOAD_EFER,
 };
 use xhypervisor::consts::vmx_exit;
-use xhypervisor::{read_vmx_cap, vCPU, Register};
+use xhypervisor::{read_vmx_cap, VirtualCpu, Register};
 
 /* desired control word constrained by hardware/hypervisor capabilities */
 fn cap2ctrl(cap: u64, ctrl: u64) -> u64 {
@@ -55,7 +55,7 @@ lazy_static! {
 pub struct EhyveCPU {
 	id: u32,
 	extint_pending: bool,
-	vcpu: vCPU,
+	vcpu: VirtualCpu,
 }
 
 impl EhyveCPU {
@@ -63,7 +63,7 @@ impl EhyveCPU {
 		EhyveCPU {
 			id: id,
 			extint_pending: false,
-			vcpu: vCPU::new().unwrap(),
+			vcpu: VirtualCpu::new().unwrap(),
 		}
 	}
 
