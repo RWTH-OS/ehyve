@@ -1,11 +1,11 @@
 [package]
 name = "ehyve"
-version = "0.0.13"
+version = "0.0.14"
 authors = ["Stefan Lankes <slankes@eonerc.rwth-aachen>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-clap = "2.34"
+clap = { version = "4.0", features = ["derive", "cargo"] }
 elf = "0.0.10"
 env_logger = "0.9"
 lazy_static = "1.4"
