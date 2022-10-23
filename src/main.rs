@@ -47,20 +47,20 @@ use vm::*;
 #[derive(Parser, Debug)]
 #[command(author=crate_authors!(), version, about, long_about = None)]
 struct Args {
-    /// Map file into the address space of the guest
-    #[arg(short, long)]
-    file: Option<String>,
+	/// Map file into the address space of the guest
+	#[arg(short, long)]
+	file: Option<String>,
 
-    /// Memory size of the guest
-    #[arg(short, long, default_value_t = DEFAULT_GUEST_SIZE)]
-    mem_size: usize,
+	/// Memory size of the guest
+	#[arg(short, long, default_value_t = DEFAULT_GUEST_SIZE)]
+	mem_size: usize,
 
-    /// Number of guest processors
-    #[arg(short, long, default_value_t = 1)]
-    num_cpus: u32,
+	/// Number of guest processors
+	#[arg(short, long, default_value_t = 1)]
+	num_cpus: u32,
 
-    /// Expected path to the kernel
-    path: String,
+	/// Expected path to the kernel
+	path: String,
 }
 
 pub fn parse_bool(name: &str, default: bool) -> bool {
@@ -71,8 +71,8 @@ pub fn parse_bool(name: &str, default: bool) -> bool {
 
 fn main() {
 	env_logger::init();
-    let args = Args::parse();
-    let path = args.path;
+	let args = Args::parse();
+	let path = args.path;
 	let file = args.file;
 	let mem_size = args.mem_size;
 	let num_cpus = args.num_cpus;
