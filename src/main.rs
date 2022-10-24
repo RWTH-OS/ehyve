@@ -1,4 +1,3 @@
-#![feature(untagged_unions)]
 #![feature(core_intrinsics)]
 #![allow(dead_code)]
 
